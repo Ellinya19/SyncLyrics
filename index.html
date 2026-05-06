@@ -895,7 +895,9 @@ function showEllipsisPopup(wordIndex) {
     font-size:10px;
     color:var(--text);
     z-index:9999;
-    white-space:nowrap;
+    white-space:normal;
+    max-width:260px;
+    flex-wrap:wrap;
     box-shadow:0 2px 10px rgba(0,0,0,0.5);
     pointer-events:all;
     display:flex;
