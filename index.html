@@ -1521,7 +1521,7 @@ function exportTTML() {
           const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.5);
           return `<span begin="${b}" end="${e}">${escapeXML(w.text)}</span>`;
         }).join(' ');
-        return `<span ttm:role="x-bg" begin="${bb}" end="${be}"><span begin="${bb}" end="${be}">${innerSpans}</span></span>`;
+        return `<span ttm:role="x-bg" begin="${bb}" end="${be}">${innerSpans}</span>`;
       }).join('');
     }
     return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSpans}</p>`;
