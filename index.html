@@ -749,7 +749,7 @@
     </div>
 
     <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;">
-      <div class="section-label" style="color:#ff6eb4;">Ellinya</div>
+      <div class="section-label" style="color:#ff6eb4;">Credits</div>
       <div style="background:var(--surface);border:1px solid rgba(255,110,180,0.3);padding:14px;display:flex;flex-direction:column;gap:6px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ff6eb4;line-height:1;">By Ellinya 🌸</div>
         <div style="font-family:'Space Mono',monospace;font-size:10px;color:#7a4d60;display:flex;flex-direction:column;gap:5px;">
@@ -1768,11 +1768,12 @@ function escapeXML(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function copyTTML() {
+const copyTTML = function() {
   navigator.clipboard.writeText(window._ttmlContent || '').then(() => setStatus('Copied!', 'ok'));
 }
 
-function downloadTTML() {
+const downloadTTML = function() {
+  if (!window._ttmlContent) return;
   const blob = new Blob([window._ttmlContent], { type: 'application/ttml+xml' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
