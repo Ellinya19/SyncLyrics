@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LYRIC SYNC — Word Timing Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #111111;
+    --surface: #1a1a1a;
+    --border: #2e2e2e;
+    --accent: #e0e0e0;
+    --accent2: #999999;
+    --text: #f0f0f0;
+    --muted: #666666;
+    --done: #1e1e1e;
+    --active-glow: 0 0 30px rgba(220, 220, 220, 0.3);
+  }
+
+  .theme-ellinya {
+    --bg: #1a0d12;
+    --surface: #22101a;
+    --border: #3d1f2e;
+    --accent: #ff6eb4;
+    --accent2: #ff4d6d;
+    --text: #f8e8ef;
+    --muted: #7a4d60;
+    --done: #2a1020;
+    --active-glow: 0 0 30px rgba(255, 110, 180, 0.45);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  header {
+    padding: 24px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 4px;
+    color: var(--accent);
+  }
+
+  .logo span {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 2px;
+    display: block;
+    margin-top: -4px;
+  }
+
+  .header-controls {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { background: #fff; border-color: #fff; }
+  .btn.danger { border-color: var(--accent2); color: var(--accent2); }
+  .btn.danger:hover { background: var(--accent2); color: #fff; }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .main {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .right-panels {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .sync-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    width: fit-content;
+  }
+
+  .sync-tab {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sync-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .sync-tab:hover { color: var(--text); }
+
+  .sync-panel {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .sync-panel.active { display: flex; }
+
+  .bv-accent { --accent: #6eb4ff; --accent2: #4d6dff; --active-glow: 0 0 30px rgba(110, 180, 255, 0.45); }
+
+  /* LEFT PANEL */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    padding-bottom: 0;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .upload-zone {
+    border: 1px dashed var(--border);
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(232,255,71,0.04);
+  }
+
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-zone p { font-size: 13px; color: var(--muted); }
+  .upload-zone .filename { color: var(--accent); font-family: 'Space Mono', monospace; font-size: 11px; margin-top: 6px; }
+
+  .audio-player {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+  }
+
+  .waveform-bar {
+    height: 4px;
+    background: var(--border);
+    position: relative;
+    cursor: pointer;
+    margin: 12px 0;
+  }
+
+  .waveform-bar .progress {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  .time-display {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .playback-controls {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    align-items: center;
+  }
+
+  .play-btn {
+    width: 40px; height: 40px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .play-btn:hover { background: var(--accent); color: #000; }
+
+  .speed-select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+
+  #playbackSection {
+    position: absolute;
+    bottom: 60px;
+    right: 24px;
+    width: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 500;
+    cursor: grab;
+    user-select: none;
+  }
+
+  .lyrics-input-area {
+    flex: none;
+  }
+
+  .lyrics-textarea {
+    width: 100%;
+    height: 220px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 14px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.8;
+  }
+
+  .lyrics-textarea:focus { border-color: var(--accent); }
+
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+
+  .stats-bar span b {
+    color: var(--accent);
+    font-size: 13px;
+  }
+
+  /* RIGHT PANEL */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .word-display-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 40px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .word-canvas {
+    max-width: 760px;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 8px;
+    align-content: flex-start;
+  }
+
+  .word-chip {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    transition: all 0.1s;
+    cursor: default;
+    position: relative;
+    line-height: 1.2;
+  }
+
+  .word-chip.done {
+    color: var(--muted);
+    background: rgba(255,255,255,0.03);
+  }
+
+  .word-chip.active {
+    color: #fff;
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: var(--active-glow);
+    transform: scale(1.08);
+  }
+
+  .word-chip.pending {
+    color: var(--text);
+    border-color: var(--border);
+  }
+
+  .word-chip.undone {
+    color: var(--accent2);
+    border-color: var(--accent2);
+    animation: pulse-red 0.3s ease;
+  }
+
+  @keyframes pulse-red {
+    0% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  /* Instruction bar */
+  .instruction-bar {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 16px 40px;
+    display: flex;
+    gap: 32px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .key-hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .key {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    border: 1px solid var(--muted);
+    padding: 4px 10px;
+    color: var(--text);
+    min-width: 40px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  /* Output modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    display: none;
+  }
+
+  .modal-overlay.visible { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+
+  .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+  }
+
+  .ttml-output {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    color: #aaa;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+
+  /* Status messages */
+  .status-msg {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-left: auto;
+    transition: all 0.3s;
+  }
+
+  .status-msg.ok { color: var(--accent); }
+  .status-msg.err { color: var(--accent2); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 80px 20px;
+    width: 100%;
+  }
+
+  .empty-state .big-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty-state h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+  }
+
+  .empty-state p { font-size: 13px; max-width: 360px; margin: 0 auto; line-height: 1.8; }
+
+  .current-time-big {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  .current-time-big b { color: var(--accent); font-size: 18px; }
+
+  /* THEME PICKER */
+  .theme-picker-wrapper {
+    position: relative;
+  }
+
+  .theme-btn {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .theme-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .theme-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    min-width: 160px;
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+  }
+
+  .theme-dropdown.open { display: flex; }
+
+  .theme-option {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.1s;
+  }
+
+  .theme-option:hover { background: rgba(255,255,255,0.06); }
+  .theme-option.selected { color: var(--accent); }
+
+  /* INFO ICON */
+  .info-icon-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .info-icon {
+    font-size: 20px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s;
+    user-select: none;
+    line-height: 1;
+  }
+  .info-icon:hover { color: var(--accent); }
+  .info-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 18px;
+    min-width: 320px;
+    max-width: 380px;
+    z-index: 3000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .info-panel.visible { display: block; }
+  .info-panel-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .info-panel-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .info-panel-key {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    LYRIC SYNC
+    <span>WORD-LEVEL TIMING TOOL</span>
+  </div>
+  <div class="header-controls">
+  <div class="current-time-big" id="bigTime">⏱ <b>00:00.000</b></div>
+    <button class="btn danger" id="undoBtn" disabled onclick="undoLast()">↩ UNDO</button>
+    <button class="btn" id="resetBtn" onclick="resetSync()">⟳ RESET</button>
+    <button class="btn primary" id="exportBtn" onclick="exportTTML()" disabled>EXPORT TTML</button>
+    <div class="theme-picker-wrapper" id="themePickerWrapper">
+      <button class="theme-btn" id="themeToggleBtn" onclick="toggleThemeDropdown()">
+        <span class="theme-dot" id="themeDot" style="background:#e0e0e0;"></span>
+        <span id="themeLabel">Default</span> ▾
+      </button>
+      <div class="theme-dropdown" id="themeDropdown">
+        <button class="theme-option selected" id="opt-dark" onclick="setTheme('dark')">
+          <span class="theme-dot" style="background:#e0e0e0;border:1px solid #555;"></span> Default
+        </button>
+        <button class="theme-option" id="opt-ellinya" onclick="setTheme('ellinya')">
+          <span class="theme-dot" style="background:#ff6eb4;"></span> Ellinya
+        </button>
+      </div>
+    </div>
+    <div class="info-icon-wrapper" id="infoWrapper" onmouseenter="showInfoPanel()" onmouseleave="hideInfoPanel()" onclick="toggleInfoPanel()">
+      <span class="info-icon" style="font-size:24px;border:1px solid var(--border);padding:6px 10px;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">ⓘ</span>
+      <div class="info-panel" id="infoPanel">
+        <div class="info-panel-title">HOW TO USE</div>
+        <div class="info-panel-item">
+          <span class="info-panel-key">\</span>
+          <span>Insert <b>\</b> between characters to split a word into multiple sync units while keeping the original display.<br>
+          Example: <b>Do\ra\e\mon</b> → synced as <b>Do · ra · e · mon</b>, displayed as <b>Doraemon</b>.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</header>
+
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+
+    <div>
+      <div class="section-label">01 — Audio File</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="audioFile" accept="audio/*" onchange="loadAudio(this)">
+        <div class="upload-icon">🎵</div>
+        <p>Drop audio file here<br>or click to browse</p>
+        <div class="filename" id="audioFilename"></div>
+      </div>
+    </div>
+
+    <div id="playbackSection">
+      <div class="section-label">02 — Playback</div>
+      <div class="time-display">
+        <span id="currentTime">00:00.000</span>
+        <span id="totalTime">00:00</span>
+      </div>
+      <div class="waveform-bar" id="seekBar" onclick="seekAudio(event)">
+        <div class="progress" id="progressBar"></div>
+      </div>
+      <div class="playback-controls">
+        <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+        <select class="speed-select" onchange="setSpeed(this.value)">
+          <option value="0.5">0.5×</option>
+          <option value="0.75">0.75×</option>
+          <option value="1" selected>1×</option>
+          <option value="1.25">1.25×</option>
+        </select>
+        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;">SPACE to stamp</span>
+      </div>
+    </div>
+
+    <div class="lyrics-input-area">
+      <div class="section-label">03 — Lyrics</div>
+      <textarea class="lyrics-textarea" id="lyricsInput" placeholder="Paste lyrics here..."></textarea>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button class="btn primary" style="flex:1" onclick="loadLyrics()">LOAD LYRICS</button>
+      </div>
+      </div>
+
+    <div class="stats-bar" id="statsBar"></div>
+
+    <div class="lyrics-input-area">
+      <div class="section-label" style="color:#6eb4ff;">04 — Backing Vocal</div>
+      <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:rgba(110,180,255,0.3);"></textarea>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button class="btn" style="flex:1;border-color:#6eb4ff;color:#6eb4ff;" onclick="loadBV()">LOAD BACKING VOCAL</button>
+      </div>
+      <div class="stats-bar" id="bvStatsBar" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;">
+      <div class="section-label" style="color:#ff6eb4;">Ellinya</div>
+      <div style="background:var(--surface);border:1px solid rgba(255,110,180,0.3);padding:14px;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ff6eb4;line-height:1;">By Ellinya 🌸</div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;color:#7a4d60;display:flex;flex-direction:column;gap:5px;">
+          <a href="https://genius.com/Ellinya" target="_blank" style="color:#ff6eb4;text-decoration:none;letter-spacing:1px;opacity:0.85;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.85'">✦ Genius Profile</a>
+          <span style="letter-spacing:1px;">Discord: <b style="color:#f8e8ef;font-weight:700;">ellinya19</b></span>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+  <!-- RIGHT PANELS -->
+  <div class="right-panels">
+    <div class="sync-tabs">
+      <button class="sync-tab active" id="tab-lyric" onclick="switchTab('lyric')">03 — LYRIC SYNC</button>
+      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:#6eb4ff80;">04 — BACKING VOCAL</button>
+    </div>
+
+    <!-- LYRIC SYNC PANEL -->
+    <div class="sync-panel active" id="panel-lyric">
+      <div class="right-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="word-display-area">
+          <div class="word-canvas" id="wordCanvas">
+            <div class="empty-state">
+              <div class="big-icon">🎤</div>
+              <h3>Ready to Sync</h3>
+              <p>Load audio and lyrics, then press SPACE while the music plays to stamp each word's timing.</p>
+            </div>
+          </div>
+        </div>
+        <div class="instruction-bar">
+          <div class="key-hint"><div class="key">SPACE</div><span>Stamp next word</span></div>
+          <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
+          <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
+          <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+          <div class="status-msg" id="statusMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BACKING VOCAL SYNC PANEL -->
+    <div class="sync-panel" id="panel-bv">
+      <div class="right-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="word-display-area">
+          <div class="word-canvas" id="bvCanvas">
+            <div class="empty-state">
+              <div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div>
+              <h3 style="color:#6eb4ff;">Backing Vocal</h3>
+              <p>Load backing vocal lyrics in section 04, then sync here.</p>
+            </div>
+          </div>
+        </div>
+        <div class="instruction-bar" style="border-top-color:rgba(110,180,255,0.2);">
+          <div class="key-hint"><div class="key">SPACE</div><span>Stamp next word</span></div>
+          <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
+          <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
+          <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+          <div class="status-msg" id="bvStatusMsg" style="color:#6eb4ff;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OUTPUT MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>TTML Export</h2>
+      <button class="btn" onclick="closeModal()">✕ CLOSE</button>
+    </div>
+    <div class="modal-body">
+      <pre class="ttml-output" id="ttmlOutput"></pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="copyTTML()">📋 COPY</button>
+      <button class="btn primary" onclick="downloadTTML()">⬇ DOWNLOAD .ttml</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let audio = null;
+let words = [];       // [{text, begin, end, lineIndex}]
+let timings = [];     // [{begin, end}] — end filled when next is stamped
+let currentIndex = 0;
+let currentLineIndex = 0;
+let isPlaying = false;
+let songTitle = 'lyrics';
+let endSyncStamped = false;
+
+// ─── BACKING VOCAL STATE ─────────────────────────────────────────────────────
+let bvWords = [];
+let bvTimings = [];
+let bvCurrentIndex = 0;
+let bvCurrentLineIndex = 0;
+let bvEndSyncStamped = false;
+let activeTab = 'lyric'; // 'lyric' | 'bv'
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-lyric').classList.toggle('active', tab === 'lyric');
+  document.getElementById('tab-bv').classList.toggle('active', tab === 'bv');
+  document.getElementById('panel-lyric').classList.toggle('active', tab === 'lyric');
+  document.getElementById('panel-bv').classList.toggle('active', tab === 'bv');
+}
+
+// ─── ELLIPSIS SUGGESTION ─────────────────────────────────────────────────────
+let lastStampTime = null;        // wall-clock Date.ms of last stamp
+let ellipsisTimer = null;        // setTimeout handle
+let ellipsisPopup = null;        // DOM element
+let ellipsisTargetIndex = null;  // which word triggered the popup
+
+function startEllipsisWatch(wordIndex) {
+  clearEllipsisWatch();
+  lastStampTime = Date.now();
+  ellipsisTargetIndex = wordIndex;
+  ellipsisTimer = setTimeout(() => {
+    showEllipsisPopup(wordIndex);
+  }, 5000);
+}
+
+function clearEllipsisWatch() {
+  if (ellipsisTimer) { clearTimeout(ellipsisTimer); ellipsisTimer = null; }
+  hideEllipsisPopup();
+}
+
+function showEllipsisPopup(wordIndex) {
+  hideEllipsisPopup();
+  const chip = document.getElementById(`word-${wordIndex - 1}`);
+  if (!chip) return;
+  const popup = document.createElement('div');
+  popup.id = 'ellipsis-popup';
+  popup.style.cssText = `
+    position:fixed;
+    background:#1a1a1a;
+    border:1px solid var(--accent);
+    padding:5px 8px;
+    font-family:'Space Mono',monospace;
+    font-size:10px;
+    color:var(--text);
+    z-index:9999;
+    white-space:nowrap;
+    box-shadow:0 2px 10px rgba(0,0,0,0.5);
+    pointer-events:all;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  `;
+  popup.innerHTML = `
+    <span style="color:var(--accent);font-size:9px;">+ "..."?</span>
+    <button onclick="acceptEllipsis()" style="background:var(--accent);color:#000;border:none;padding:2px 7px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;font-weight:700;">✓</button>
+    <button onclick="rejectEllipsis()" style="background:transparent;color:var(--muted);border:1px solid var(--muted);padding:2px 7px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;">✕</button>
+  `;
+
+  // Position right next to the chip
+  const rect = chip.getBoundingClientRect();
+  popup.style.left = (rect.right + 6) + 'px';
+  popup.style.top = rect.top + 'px';
+
+  document.body.appendChild(popup);
+  ellipsisPopup = popup;
+}
+
+function hideEllipsisPopup() {
+  if (ellipsisPopup) { ellipsisPopup.remove(); ellipsisPopup = null; }
+}
+
+function acceptEllipsis() {
+  hideEllipsisPopup();
+  clearEllipsisWatch();
+  // Insert "..." as 3 separate dot-words after word at (currentIndex - 1)
+  const insertAt = currentIndex; // insert before currentIndex
+  const prevWord = words[insertAt - 1];
+  const dotLineIndex = prevWord ? prevWord.lineIndex + 0.5 : 0; // special line between
+
+  // Insert ... words into the words array
+  const dots = [
+    { text: '.', begin: null, end: null, lineIndex: Math.floor(dotLineIndex) + 1, isDot: true },
+    { text: '.', begin: null, end: null, lineIndex: Math.floor(dotLineIndex) + 1, isDot: true },
+    { text: '.', begin: null, end: null, lineIndex: Math.floor(dotLineIndex) + 1, isDot: true },
+  ];
+
+  // Shift lineIndex of all words from currentIndex onward
+  for (let i = currentIndex; i < words.length; i++) {
+    words[i].lineIndex += 2;
+  }
+  const newDotLineIndex = (prevWord ? prevWord.lineIndex : -1) + 1;
+  dots[0].lineIndex = newDotLineIndex;
+  dots[1].lineIndex = newDotLineIndex;
+  dots[2].lineIndex = newDotLineIndex;
+
+  words.splice(insertAt, 0, ...dots);
+  timings.splice(insertAt, 0, null, null, null);
+
+  setStatus('Đã thêm "..." — bấm ← để sync lại', 'ok');
+  renderWords();
+  updateStats();
+}
+
+function rejectEllipsis() {
+  hideEllipsisPopup();
+  clearEllipsisWatch();
+}
+
+// ─── WORD SPLITTING ──────────────────────────────────────────────────────────
+// Returns array of {display, ttml} sub-words for a raw word token
+function splitWord(word) {
+  // Step 1: Handle backslash split (Vod\ka → "Vod","ka", ttml = "Vodka")
+  // Step 2: Handle hypen split on each piece (oh-oh → "oh-","oh", display keeps hyphen)
+  const result = [];
+  const bsParts = word.split('\\');
+  const ttmlFull = bsParts.join(''); // backslash removed for ttml
+  if (bsParts.length > 1) {
+    // Backslash split: display is joined (no backslash), ttml is same joined string
+    // Each sub-part is its own sync unit, displayed as concatenated visually
+    // We render them as display=ttmlFull but sync individually — represent as a "group"
+    // Actually per spec: display stays as full word (no backslash), ttml same
+    // Each piece is a separate sync unit but chip shows partial
+    let accumulated = '';
+    bsParts.forEach((part, idx) => {
+      accumulated += part;
+      const isLast = idx === bsParts.length - 1;
+      // display: accumulated so far... but we want to show full word always
+      // Per spec: hiển thị vẫn là "Vodka" (mất ký tự \)
+      // So display = ttmlFull for all sub-parts, ttml = ttmlFull
+      result.push({ display: part, ttml: part, isBsPart: true, bsIndex: idx, bsTotal: bsParts.length });
+    });
+    return result;
+  }
+  // No backslash: handle hypen
+  return splitHyphen(word);
+}
+
+function splitHyphen(word) {
+  // Find hyphen(s) inside the word (not at start/end)
+  // oh-oh → ["oh-", "oh"]
+  // well-being-ish → ["well-", "being-", "ish"]
+  const result = [];
+  const parts = word.split('-');
+  if (parts.length <= 1) {
+    result.push({ display: word, ttml: word });
+    return result;
+  }
+  // Rejoin with hyphen, each part except last gets trailing hyphen
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === '') continue; // skip empty (leading/trailing hyphen)
+    const isLast = i === parts.length - 1 || parts.slice(i+1).every(p => p === '');
+    result.push({
+    display: isLast ? parts[i] : parts[i] + '-',
+    ttml: isLast ? parts[i] : parts[i] + '-',
+    isHyphenPart: true,
+    hyphenIndex: result.length
+  });
+  }
+  // Edge case: if only 1 result produced (e.g. word ends with hyphen), just return word as-is
+  if (result.length <= 1) return [{ display: word, ttml: word }];
+  return result;
+}
+
+// ─── AUDIO ───────────────────────────────────────────────────────────────────
+function loadAudio(input) {
+  const file = input.files[0];
+  if (!file) return;
+  songTitle = file.name.replace(/\.[^.]+$/, '');
+  document.getElementById('audioFilename').textContent = file.name;
+
+  if (audio) { audio.pause(); audio.src = ''; }
+  audio = new Audio(URL.createObjectURL(file));
+
+  audio.addEventListener('timeupdate', updateProgress);
+  audio.addEventListener('ended', () => {
+    isPlaying = false;
+    document.getElementById('playBtn').textContent = '▶';
+  });
+  audio.addEventListener('loadedmetadata', () => {
+    document.getElementById('totalTime').textContent = formatTime(audio.duration);
+  });
+  setStatus('Audio loaded ✓', 'ok');
+}
+
+function togglePlay() {
+  if (!audio) { setStatus('No audio loaded', 'err'); return; }
+  if (isPlaying) {
+    audio.pause(); isPlaying = false;
+    document.getElementById('playBtn').textContent = '▶';
+  } else {
+    audio.play(); isPlaying = true;
+    document.getElementById('playBtn').textContent = '⏸';
+  }
+}
+
+function setSpeed(v) {
+  if (audio) audio.playbackRate = parseFloat(v);
+}
+
+function seekAudio(e) {
+  if (!audio || !audio.duration) return;
+  const bar = document.getElementById('seekBar');
+  const ratio = e.offsetX / bar.offsetWidth;
+  audio.currentTime = ratio * audio.duration;
+}
+
+function updateProgress() {
+  if (!audio) return;
+  const ct = audio.currentTime;
+  const dur = audio.duration || 1;
+  document.getElementById('progressBar').style.width = (ct / dur * 100) + '%';
+  const fmt = formatTime(ct);
+  document.getElementById('currentTime').textContent = fmt;
+  document.getElementById('bigTime').innerHTML = `⏱ <b>${fmt}</b>`;
+}
+
+// ─── LYRICS ──────────────────────────────────────────────────────────────────
+function loadLyrics() {
+  const raw = document.getElementById('lyricsInput').value.trim();
+  if (!raw) { setStatus('Paste lyrics first', 'err'); return; }
+
+  words = [];
+  let lineIndex = 0;
+  const lines = raw.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === '') { lineIndex++; continue; }
+    // Split each line into individual words, each word gets its own entry
+    // but all words on the same line share the same lineIndex
+    const lineWords = trimmed.split(/\s+/).filter(w => w.length > 0);
+    for (const word of lineWords) {
+      const subWords = splitWord(word);
+      for (const sw of subWords) {
+        words.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex, isBsPart: sw.isBsPart || false, bsIndex: sw.bsIndex !== undefined ? sw.bsIndex : -1, isHyphenPart: sw.isHyphenPart || false, hyphenIndex: sw.hyphenIndex !== undefined ? sw.hyphenIndex : -1 });
+      }
+    }
+    lineIndex++; // Each line = new <p>
+  }
+  if (words.length === 0) { setStatus('No words found', 'err'); return; }
+  currentLineIndex = words[0].lineIndex;
+
+  timings = [];
+  currentIndex = 0;
+  endSyncStamped = false;
+  renderWords();
+  updateStats();
+  setStatus(`${words.length} words loaded ✓`, 'ok');
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('undoBtn').disabled = true;
+}
+
+function renderWords() {
+  const canvas = document.getElementById('wordCanvas');
+  if (words.length === 0) {
+    canvas.innerHTML = `<div class="empty-state"><div class="big-icon">🎤</div><h3>Ready to Sync</h3><p>Load audio and lyrics to begin.</p></div>`;
+    return;
+  }
+
+  canvas.innerHTML = '';
+  let prevLineIndex = null;
+  words.forEach((w, i) => {
+    // Insert line-break divider when lineIndex changes
+    if (prevLineIndex !== null && w.lineIndex !== prevLineIndex) {
+      const br = document.createElement('div');
+      br.style.cssText = 'width:100%;height:2px;background:var(--border);margin:6px 0;flex-basis:100%;';
+      canvas.appendChild(br);
+    }
+    prevLineIndex = w.lineIndex;
+
+    const chip = document.createElement('div');
+    chip.className = 'word-chip';
+    chip.id = `word-${i}`;
+  if (w.isDot) {
+      chip.style.cssText += 'padding:4px 2px;font-size:30px;letter-spacing:0;';
+    }
+    chip.textContent = w.text;
+
+    if (i < currentIndex) chip.classList.add('done');
+    else if (i === currentIndex) chip.classList.add('active');
+    else chip.classList.add('pending');
+
+    canvas.appendChild(chip);
+  });
+
+  // Scroll active into view
+  const activeEl = document.getElementById(`word-${currentIndex}`);
+  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Append "Kết thúc sync" chip at the end
+  if (words.length > 0) {
+    const br2 = document.createElement('div');
+    br2.style.cssText = 'width:100%;height:2px;background:var(--border);margin:6px 0;flex-basis:100%;';
+    canvas.appendChild(br2);
+    const endChip = document.createElement('div');
+    endChip.className = 'word-chip ' + (endSyncStamped ? 'done' : (currentIndex >= words.length ? 'active' : 'pending'));
+    endChip.id = 'end-sync-chip';
+    endChip.textContent = '⏹ End of Sync';
+    endChip.style.cssText = 'font-size:16px;letter-spacing:2px;opacity:0.7;border-style:dashed;';
+    canvas.appendChild(endChip);
+    if (currentIndex >= words.length && !endSyncStamped) {
+      endChip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+function updateChipState(index, state) {
+  const el = document.getElementById(`word-${index}`);
+  if (!el) return;
+  el.className = `word-chip ${state}`;
+}
+
+// ─── STAMPING ────────────────────────────────────────────────────────────────
+function stampWord() {
+  if (words.length === 0) { setStatus('Load lyrics first', 'err'); return; }
+  if (!audio) { setStatus('Load audio first', 'err'); return; }
+  if (currentIndex >= words.length) {
+    if (!endSyncStamped && audio) {
+      const t = audio.currentTime;
+      // Set end time of last word to now if not set
+      if (words.length > 0 && timings[words.length - 1] && timings[words.length - 1].end === null) {
+        timings[words.length - 1].end = t;
+        words[words.length - 1].end = t;
+      }
+      endSyncStamped = true;
+      renderWords();
+      setStatus('Kết thúc sync ✓ — Xuất TTML!', 'ok');
+      document.getElementById('exportBtn').disabled = false;
+    } else if (endSyncStamped) {
+      setStatus('Đã kết thúc sync!', 'ok');
+    }
+    return;
+  }
+
+  const t = audio.currentTime;
+
+  // Close previous word's end time
+  if (currentIndex > 0 && timings[currentIndex - 1]) {
+    timings[currentIndex - 1].end = t;
+    words[currentIndex - 1].end = t;
+
+    // Auto new <p> if gap > 3s between stamps, but only if not already on a new line
+    const prevBegin = words[currentIndex - 1].begin;
+    const alreadyNewLine = words[currentIndex].lineIndex > words[currentIndex - 1].lineIndex;
+    if (prevBegin !== null && (t - prevBegin) > 3 && !alreadyNewLine) {
+      currentLineIndex = Math.max(currentLineIndex, words[currentIndex - 1].lineIndex) + 1;
+      words[currentIndex].lineIndex = currentLineIndex;
+    }
+  }
+
+  // Stamp current word
+  timings[currentIndex] = { begin: t, end: null };
+  words[currentIndex].begin = t;
+
+  updateChipState(currentIndex, 'done');
+  currentIndex++;
+
+  if (currentIndex < words.length) {
+    updateChipState(currentIndex, 'active');
+    const activeEl = document.getElementById(`word-${currentIndex}`);
+    if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    startEllipsisWatch(currentIndex); // start 5s watch for new word
+  } else {
+    clearEllipsisWatch();
+    setStatus('⏹ Bấm SPACE thêm 1 lần để kết thúc sync', 'ok');
+  }
+
+  document.getElementById('undoBtn').disabled = false;
+  updateStats();
+}
+
+function undoLast() {
+  if (currentIndex === 0) return;
+  clearEllipsisWatch();
+  // If undoing into endSync zone
+  if (currentIndex >= words.length && endSyncStamped) {
+    endSyncStamped = false;
+    document.getElementById('exportBtn').disabled = true;
+    renderWords();
+    setStatus('Undo kết thúc sync ✓', 'ok');
+    return;
+  }
+  currentIndex--;
+  words[currentIndex].begin = null;
+  words[currentIndex].end = null;
+  timings[currentIndex] = null;
+
+  // Also clear the previous word's end
+  if (currentIndex > 0 && timings[currentIndex - 1]) {
+    timings[currentIndex - 1].end = null;
+    words[currentIndex - 1].end = null;
+  }
+
+  updateChipState(currentIndex, 'active');
+  if (currentIndex + 1 < words.length) {
+    updateChipState(currentIndex + 1, 'pending');
+  }
+
+  const activeEl = document.getElementById(`word-${currentIndex}`);
+  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  document.getElementById('exportBtn').disabled = true;
+  if (currentIndex === 0) document.getElementById('undoBtn').disabled = true;
+  updateStats();
+  setStatus('Undo ✓', 'ok');
+}
+
+function resetSync() {
+  currentIndex = 0;
+  timings = [];
+  endSyncStamped = false;
+  clearEllipsisWatch();
+  words.forEach(w => { w.begin = null; w.end = null; });
+  renderWords();
+  updateStats();
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('undoBtn').disabled = true;
+  setStatus('Reset ✓', 'ok');
+}
+
+function updateStats() {
+  const done = words.filter(w => w.begin !== null).length;
+  const total = words.length;
+  if (total === 0) { document.getElementById('statsBar').innerHTML = ''; return; }
+  const pct = Math.round(done / total * 100);
+  document.getElementById('statsBar').innerHTML = `
+    <span><b>${done}</b> / ${total} words</span>
+    <span><b>${pct}%</b> done</span>
+    ${currentIndex < total ? `<span>Next: <b>${words[currentIndex]?.text || '—'}</b></span>` : '<span style="color:var(--accent)"><b>COMPLETE</b></span>'}
+  `;
+}
+
+// ─── BACKING VOCAL FUNCTIONS ─────────────────────────────────────────────────
+function loadBV() {
+  const raw = document.getElementById('bvInput').value.trim();
+  if (!raw) { setBVStatus('Paste backing vocal first', 'err'); return; }
+
+  bvWords = [];
+  let lineIndex = 0;
+  const lines = raw.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === '') { lineIndex++; continue; }
+    const lineWords = trimmed.split(/\s+/).filter(w => w.length > 0);
+    for (const word of lineWords) {
+      const subWords = splitWord(word);
+      for (const sw of subWords) {
+        bvWords.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex });
+      }
+    }
+    lineIndex++;
+  }
+  if (bvWords.length === 0) { setBVStatus('No words found', 'err'); return; }
+  bvCurrentLineIndex = bvWords[0].lineIndex;
+
+  bvTimings = [];
+  bvCurrentIndex = 0;
+  bvEndSyncStamped = false;
+  bvRenderWords();
+  bvUpdateStats();
+  setBVStatus(`${bvWords.length} BV words loaded ✓`, 'ok');
+  document.getElementById('exportBtn').disabled = true;
+}
+
+function bvRenderWords() {
+  const canvas = document.getElementById('bvCanvas');
+  if (bvWords.length === 0) {
+    canvas.innerHTML = `<div class="empty-state"><div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div><h3 style="color:#6eb4ff;">Backing Vocal</h3><p>Load backing vocal lyrics in section 04.</p></div>`;
+    return;
+  }
+  canvas.innerHTML = '';
+  let prevLineIndex = null;
+  bvWords.forEach((w, i) => {
+    if (prevLineIndex !== null && w.lineIndex !== prevLineIndex) {
+      const br = document.createElement('div');
+      br.style.cssText = 'width:100%;height:2px;background:rgba(110,180,255,0.25);margin:6px 0;flex-basis:100%;';
+      canvas.appendChild(br);
+    }
+    prevLineIndex = w.lineIndex;
+    const chip = document.createElement('div');
+    chip.className = 'word-chip';
+    chip.id = `bv-word-${i}`;
+    chip.style.setProperty('--accent', '#6eb4ff');
+    chip.textContent = w.text;
+    if (i < bvCurrentIndex) chip.classList.add('done');
+    else if (i === bvCurrentIndex) { chip.classList.add('active'); chip.style.background='#6eb4ff'; chip.style.borderColor='#6eb4ff'; chip.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; }
+    else chip.classList.add('pending');
+    canvas.appendChild(chip);
+  });
+
+  const activeEl = document.getElementById(`bv-word-${bvCurrentIndex}`);
+  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  if (bvWords.length > 0) {
+    const br2 = document.createElement('div');
+    br2.style.cssText = 'width:100%;height:2px;background:rgba(110,180,255,0.25);margin:6px 0;flex-basis:100%;';
+    canvas.appendChild(br2);
+    const endChip = document.createElement('div');
+    endChip.className = 'word-chip ' + (bvEndSyncStamped ? 'done' : (bvCurrentIndex >= bvWords.length ? 'active' : 'pending'));
+    endChip.id = 'bv-end-sync-chip';
+    endChip.textContent = '⏹ End of BV Sync';
+    endChip.style.cssText = 'font-size:16px;letter-spacing:2px;opacity:0.7;border-style:dashed;';
+    canvas.appendChild(endChip);
+    if (bvCurrentIndex >= bvWords.length && !bvEndSyncStamped) {
+      endChip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+}
+
+function bvStampWord() {
+  if (bvWords.length === 0) { setBVStatus('Load backing vocal first', 'err'); return; }
+  if (!audio) { setBVStatus('Load audio first', 'err'); return; }
+  if (bvCurrentIndex >= bvWords.length) {
+    if (!bvEndSyncStamped) {
+      const t = audio.currentTime;
+      if (bvWords.length > 0 && bvTimings[bvWords.length - 1] && bvTimings[bvWords.length - 1].end === null) {
+        bvTimings[bvWords.length - 1].end = t;
+        bvWords[bvWords.length - 1].end = t;
+      }
+      bvEndSyncStamped = true;
+      bvRenderWords();
+      setBVStatus('Kết thúc BV sync ✓ — Xuất TTML!', 'ok');
+      if (endSyncStamped || words.length === 0) {
+        document.getElementById('exportBtn').disabled = false;
+      }
+    } else {
+      setBVStatus('Đã kết thúc BV sync!', 'ok');
+    }
+    return;
+  }
+
+  const t = audio.currentTime;
+  if (bvCurrentIndex > 0 && bvTimings[bvCurrentIndex - 1]) {
+    bvTimings[bvCurrentIndex - 1].end = t;
+    bvWords[bvCurrentIndex - 1].end = t;
+  }
+
+  bvTimings[bvCurrentIndex] = { begin: t, end: null };
+  bvWords[bvCurrentIndex].begin = t;
+
+  const el = document.getElementById(`bv-word-${bvCurrentIndex}`);
+  if (el) { el.classList.remove('active','pending'); el.classList.add('done'); el.style.background=''; el.style.borderColor=''; el.style.boxShadow=''; }
+  bvCurrentIndex++;
+
+  if (bvCurrentIndex < bvWords.length) {
+    const nextEl = document.getElementById(`bv-word-${bvCurrentIndex}`);
+    if (nextEl) { nextEl.classList.remove('pending'); nextEl.classList.add('active'); nextEl.style.background='#6eb4ff'; nextEl.style.borderColor='#6eb4ff'; nextEl.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; nextEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  } else {
+    setBVStatus('⏹ Bấm SPACE thêm 1 lần để kết thúc BV sync', 'ok');
+  }
+
+  document.getElementById('undoBtn').disabled = false;
+  bvUpdateStats();
+}
+
+function bvUndoLast() {
+  if (bvCurrentIndex === 0) return;
+  if (bvCurrentIndex >= bvWords.length && bvEndSyncStamped) {
+    bvEndSyncStamped = false;
+    document.getElementById('exportBtn').disabled = true;
+    bvRenderWords();
+    setBVStatus('Undo BV kết thúc sync ✓', 'ok');
+    return;
+  }
+  bvCurrentIndex--;
+  bvWords[bvCurrentIndex].begin = null;
+  bvWords[bvCurrentIndex].end = null;
+  bvTimings[bvCurrentIndex] = null;
+  if (bvCurrentIndex > 0 && bvTimings[bvCurrentIndex - 1]) {
+    bvTimings[bvCurrentIndex - 1].end = null;
+    bvWords[bvCurrentIndex - 1].end = null;
+  }
+  bvRenderWords();
+  document.getElementById('exportBtn').disabled = true;
+  if (bvCurrentIndex === 0) document.getElementById('undoBtn').disabled = true;
+  bvUpdateStats();
+  setBVStatus('Undo BV ✓', 'ok');
+}
+
+function bvUpdateStats() {
+  const done = bvWords.filter(w => w.begin !== null).length;
+  const total = bvWords.length;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('bvStatsBar').innerHTML = total > 0 ? `
+    <span><b>${done}</b> / ${total} words</span>
+    <span><b>${pct}%</b> done</span>
+    ${bvCurrentIndex < total ? `<span>Next: <b>${bvWords[bvCurrentIndex]?.text || '—'}</b></span>` : '<span style="color:#6eb4ff"><b>COMPLETE</b></span>'}
+  ` : '';
+}
+
+function setBVStatus(msg, type) {
+  const el = document.getElementById('bvStatusMsg');
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+}
+
+// ─── TTML EXPORT ─────────────────────────────────────────────────────────────
+function exportTTML() {
+  const stamped = words.filter(w => w.begin !== null);
+  if (stamped.length === 0) { setStatus('Nothing to export', 'err'); return; }
+
+  const bvStamped = bvWords.filter(w => w.begin !== null);
+  const hasBV = bvStamped.length > 0;
+
+  const totalDur = audio && audio.duration ? audio.duration : (stamped[stamped.length-1].end || stamped[stamped.length-1].begin + 0.5);
+  const durStr = toTTMLTime(totalDur);
+  const firstBegin = toTTMLTime(stamped[0].begin);
+  const lastEnd = toTTMLTime(stamped[stamped.length-1].end || stamped[stamped.length-1].begin + 0.5);
+
+  // Build main lyric <p> tags
+  const lineMap = {};
+  stamped.forEach(w => {
+    const li = w.lineIndex !== undefined ? w.lineIndex : 0;
+    if (!lineMap[li]) lineMap[li] = [];
+    lineMap[li].push(w);
+  });
+
+  // Build main lyric <p> tags, with BV embedded as x-bg spans inside matching <p>
+  // Match BV lines to main lines by overlapping time
+  const bvLineMap = {};
+  if (hasBV) {
+    const bvLineMapRaw = {};
+    bvStamped.forEach(w => {
+      const li = w.lineIndex !== undefined ? w.lineIndex : 0;
+      if (!bvLineMapRaw[li]) bvLineMapRaw[li] = [];
+      bvLineMapRaw[li].push(w);
+    });
+    // For each BV line, find which main line it belongs to
+    // Strategy: find the main line whose begin is closest to BV begin (but not after BV end)
+    Object.values(bvLineMapRaw).forEach(bvLine => {
+      const bvBegin = bvLine[0].begin;
+      const bvEnd = bvLine[bvLine.length-1].end || bvLine[bvLine.length-1].begin + 0.5;
+      let bestKey = null, bestDist = Infinity;
+      // First try: find a main line whose time range contains bvBegin
+      Object.entries(lineMap).forEach(([key, mLine]) => {
+        const mBegin = mLine[0].begin;
+        const mEnd = mLine[mLine.length-1].end || mLine[mLine.length-1].begin + 0.5;
+        if (bvBegin >= mBegin && bvBegin < mEnd) {
+          const dist = bvBegin - mBegin;
+          if (dist < bestDist) { bestDist = dist; bestKey = key; }
+        }
+      });
+      // Fallback: if no containing line found, use closest begin
+      if (bestKey === null) {
+        Object.entries(lineMap).forEach(([key, mLine]) => {
+          const mBegin = mLine[0].begin;
+          const dist = Math.abs(bvBegin - mBegin);
+          if (dist < bestDist) { bestDist = dist; bestKey = key; }
+        });
+      }
+      if (bestKey !== null) {
+        if (!bvLineMap[bestKey]) bvLineMap[bestKey] = [];
+        bvLineMap[bestKey].push(bvLine);
+      }
+    });
+  }
+
+  let pIndex = 1;
+  const pTags = Object.entries(lineMap).map(([key, lineWords]) => {
+    const pb = toTTMLTime(lineWords[0].begin);
+    const pe = toTTMLTime(lineWords[lineWords.length-1].end || lineWords[lineWords.length-1].begin + 0.5);
+    const allDots = lineWords.every(w => w.isDot);
+    let mainSpans;
+    if (allDots) {
+      const tStart = lineWords[0].begin;
+      const tEnd = lineWords[lineWords.length - 1].end || (tStart + (lineWords.length * 1));
+      const step = (tEnd - tStart) / lineWords.length;
+      mainSpans = lineWords.map((w, di) => {
+        const b = toTTMLTime(tStart + di * step);
+        const e = toTTMLTime(tStart + (di + 1) * step);
+        return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+      }).join('');
+    } else {
+      mainSpans = lineWords.map((w, wi) => {
+        const b = toTTMLTime(w.begin);
+        const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.5);
+        const span = `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+        const prev = lineWords[wi - 1];
+        const sep = (wi > 0 && ((w.isBsPart && w.bsIndex > 0) || (w.isHyphenPart && w.hyphenIndex > 0))) ? '' : (wi > 0 ? ' ' : '');
+        return sep + span;
+      }).join('');
+    }
+    // Attach BV lines as x-bg spans inside this <p>
+    let bvSpans = '';
+    if (hasBV && bvLineMap[key]) {
+      bvSpans = bvLineMap[key].map(bvLine => {
+        const bb = toTTMLTime(bvLine[0].begin);
+        const be = toTTMLTime(bvLine[bvLine.length-1].end || bvLine[bvLine.length-1].begin + 0.5);
+        const innerSpans = bvLine.map(w => {
+          const b = toTTMLTime(w.begin);
+          const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.5);
+          return `<span begin="${b}" end="${e}">${escapeXML(w.text)}</span>`;
+        }).join(' ');
+        return `<span ttm:role="x-bg" begin="${bb}" end="${be}"><span begin="${bb}" end="${be}">${innerSpans}</span></span>`;
+      }).join('');
+    }
+    return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSpans}</p>`;
+  }).join('\n');
+
+  const agentMeta = `<ttm:agent type="person" xml:id="v1"/>`;
+
+  const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:amll="http://www.example.com/ns/amll" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word"><head><metadata>${agentMeta}</metadata></head><body dur="${durStr}"><div begin="${firstBegin}" end="${lastEnd}">\n${pTags}\n    </div></body></tt>`;
+
+  document.getElementById('ttmlOutput').textContent = ttml;
+  document.getElementById('modalOverlay').classList.add('visible');
+  window._ttmlContent = ttml;
+}
+
+function toTTMLTime(sec) {
+  if (sec === null || sec === undefined) sec = 0;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const rawS = sec % 60;
+  const s = rawS.toFixed(3).padStart(6, '0');
+  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${s}`;
+  return `${String(m).padStart(2,'0')}:${s}`;
+}
+
+function escapeXML(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copyTTML() {
+  navigator.clipboard.writeText(window._ttmlContent || '').then(() => setStatus('Copied!', 'ok'));
+}
+
+function downloadTTML() {
+  const blob = new Blob([window._ttmlContent], { type: 'application/ttml+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${songTitle}.ttml`;
+  a.click();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('visible');
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function formatTime(sec) {
+  if (!sec || isNaN(sec)) return '00:00.000';
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60);
+  return `${String(m).padStart(2,'0')}:${s.toFixed(3).padStart(6,'0')}`;
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+}
+
+// ─── KEYBOARD ────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // Don't intercept when typing in textarea
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (activeTab === 'bv') bvStampWord(); else stampWord();
+  } else if (e.code === 'KeyZ') {
+    e.preventDefault();
+    if (activeTab === 'bv') bvUndoLast(); else undoLast();
+  } else if (e.code === 'KeyP') {
+    e.preventDefault();
+    togglePlay();
+  } else if (e.code === 'ArrowLeft') {
+    e.preventDefault();
+    if (audio) audio.currentTime = Math.max(0, audio.currentTime - 2);
+  } else if (e.code === 'ArrowRight') {
+    e.preventDefault();
+    if (audio) audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 2);
+  }
+});
+
+// Drag & drop on upload zone
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('audio/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('audioFile').files = dt.files;
+    loadAudio(document.getElementById('audioFile'));
+  }
+});
+
+// Pre-fill lyrics from the provided text
+const defaultLyrics = `This is a sample of the lyrics.
+
+Use a space bar to create a blank line.`;
+
+document.getElementById('lyricsInput').value = defaultLyrics;
+
+// ─── THEME PICKER ─────────────────────────────────────────────────────────────
+let currentTheme = 'dark';
+
+function setTheme(theme) {
+  currentTheme = theme;
+  const body = document.body;
+  if (theme === 'ellinya') {
+    body.classList.add('theme-ellinya');
+    document.getElementById('themeDot').style.background = '#ff6eb4';
+    document.getElementById('themeLabel').textContent = 'ELLINYA';
+    document.getElementById('opt-dark').classList.remove('selected');
+    document.getElementById('opt-ellinya').classList.add('selected');
+  } else {
+    body.classList.remove('theme-ellinya');
+    document.getElementById('themeDot').style.background = '#e0e0e0';
+    document.getElementById('themeLabel').textContent = 'Default';
+    document.getElementById('opt-ellinya').classList.remove('selected');
+    document.getElementById('opt-dark').classList.add('selected');
+  }
+  closeThemeDropdown();
+}
+
+function toggleThemeDropdown() {
+  document.getElementById('themeDropdown').classList.toggle('open');
+}
+
+function closeThemeDropdown() {
+  document.getElementById('themeDropdown').classList.remove('open');
+}
+
+// ─── DRAGGABLE PLAYBACK ───────────────────────────────────────────────────────
+(function() {
+  const el = document.getElementById('playbackSection');
+  let dragging = false, ox = 0, oy = 0;
+  el.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+    dragging = true;
+    const rect = el.getBoundingClientRect();
+    ox = e.clientX - rect.left;
+    oy = e.clientY - rect.top;
+    el.style.position = 'fixed';
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.left = rect.left + 'px';
+    el.style.top = rect.top + 'px';
+    el.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    let x = e.clientX - ox;
+    let y = e.clientY - oy;
+    x = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, x));
+    y = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, y));
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; el.style.cursor = 'grab'; });
+})();
+
+document.addEventListener('click', (e) => {
+  if (!document.getElementById('themePickerWrapper').contains(e.target)) {
+    closeThemeDropdown();
+  }
+  if (!document.getElementById('infoWrapper').contains(e.target)) {
+    hideInfoPanel();
+  }
+});
+
+let infoPanelOpen = false;
+function showInfoPanel() { document.getElementById('infoPanel').classList.add('visible'); }
+function hideInfoPanel() { if (!infoPanelOpen) document.getElementById('infoPanel').classList.remove('visible'); }
+function toggleInfoPanel() {
+  infoPanelOpen = !infoPanelOpen;
+  document.getElementById('infoPanel').classList.toggle('visible', infoPanelOpen);
+}
+</script>
+</body>
+</html>
