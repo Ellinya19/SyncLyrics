@@ -1159,8 +1159,8 @@ function renderWords() {
     const endChip = document.createElement('div');
     endChip.className = 'word-chip ' + (endSyncStamped ? 'done' : (currentIndex >= words.length ? 'active' : 'pending'));
     endChip.id = 'end-sync-chip';
-    endChip.textContent = '⏹ End of Sync';
-    endChip.style.cssText = 'font-size:16px;letter-spacing:2px;opacity:0.7;border-style:dashed;';
+    endChip.textContent = '⏹ End of Sync' + (endSyncStamped ? ' —' : (currentIndex >= words.length ? ' — You need to press Space to sync this line before exporting the TTML file.' : ''));
+    endChip.style.cssText = 'font-size:14px;letter-spacing:1.5px;border-style:dashed;' + (currentIndex >= words.length && !endSyncStamped ? 'color:#ffcc00;border-color:#ffcc00;background:rgba(255,204,0,0.08);' : 'opacity:0.5;');
     canvas.appendChild(endChip);
     if (currentIndex >= words.length && !endSyncStamped) {
       endChip.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1247,6 +1247,7 @@ function stampWord() {
     reSyncTargetIndex = null;
     clearEllipsisWatch();
     setStatus('⏹ Bấm SPACE thêm 1 lần để kết thúc sync', 'ok');
+    renderWords();
   }
 
   document.getElementById('undoBtn').disabled = false;
