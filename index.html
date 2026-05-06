@@ -785,8 +785,8 @@
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
-          <div class="key-hint"><div class="key">DBLCLICK</div><span>Sửa từ trực tiếp</span></div>
-          <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync từ đây</span></div>
+          <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
+          <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
           <div class="status-msg" id="statusMsg"></div>
         </div>
       </div>
@@ -903,7 +903,7 @@ function showEllipsisPopup(wordIndex) {
     gap:6px;
   `;
   popup.innerHTML = `
-    <span style="color:var(--accent);font-size:9px;">+ "..."?</span>
+    <span style="color:var(--accent);font-size:9px;line-height:1.4;">You haven't synced to the next word after 5 seconds, would you like to add "..."?</span>
     <button onclick="acceptEllipsis()" style="background:var(--accent);color:#000;border:none;padding:2px 7px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;font-weight:700;">✓</button>
     <button onclick="rejectEllipsis()" style="background:transparent;color:var(--muted);border:1px solid var(--muted);padding:2px 7px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;">✕</button>
   `;
@@ -1129,7 +1129,7 @@ function renderWords() {
 
     if (i < currentIndex) {
       chip.classList.add('done');
-      chip.title = 'Click để re-sync từ đây';
+      chip.title = 'Click to re-sync from here';
       chip.style.cursor = 'pointer';
       chip.addEventListener('click', () => reSyncFromWord(i));
     }
@@ -1217,12 +1217,32 @@ function stampWord() {
   updateChipState(currentIndex, 'done');
   currentIndex++;
 
+  // Nếu đang ở chế độ re-sync chọn lọc: bỏ qua các từ đã có timing, dừng ở từ chưa có
+  if (reSyncTargetIndex !== null) {
+    // Tìm từ tiếp theo chưa có timing (để dừng lại đó hoặc tiếp tục nếu SPACE)
+    // Không xóa timing từ tiếp theo — chỉ set currentIndex nhảy qua nó nếu đã có timing
+    if (currentIndex < words.length && words[currentIndex].begin !== null) {
+      // Từ tiếp theo đã có timing → xóa nó để chờ người dùng SPACE stamp lại
+      words[currentIndex].begin = null;
+      words[currentIndex].end = null;
+      timings[currentIndex] = null;
+      if (currentIndex > 0 && timings[currentIndex - 1]) {
+        timings[currentIndex - 1].end = null;
+        words[currentIndex - 1].end = null;
+      }
+    } else {
+      // Từ tiếp theo chưa có timing → thoát chế độ re-sync chọn lọc
+      reSyncTargetIndex = null;
+    }
+  }
+
   if (currentIndex < words.length) {
     updateChipState(currentIndex, 'active');
     const activeEl = document.getElementById(`word-${currentIndex}`);
     if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     startEllipsisWatch(currentIndex); // start 5s watch for new word
   } else {
+    reSyncTargetIndex = null;
     clearEllipsisWatch();
     setStatus('⏹ Bấm SPACE thêm 1 lần để kết thúc sync', 'ok');
   }
@@ -1293,29 +1313,28 @@ function updateStats() {
 }
 
 // ─── RE-SYNC FROM WORD ────────────────────────────────────────────────────────
+let reSyncTargetIndex = null; // index đang trong chế độ re-sync chọn lọc
+
 function reSyncFromWord(index) {
-  if (index >= currentIndex) return; // chỉ cho phép click từ đã done
-  // Không xóa timing của các từ trước index
-  // Xóa timing của từ index trở đi
-  for (let i = index; i < words.length; i++) {
-    words[i].begin = null;
-    words[i].end = null;
-    timings[i] = null;
-  }
-  // Cũng xóa end của từ ngay trước index (nếu có)
+  if (index >= currentIndex) return;
+  // Chỉ xóa timing của từ được click (và end của từ trước nó)
+  // Các từ sau vẫn giữ nguyên — sẽ bị overwrite dần khi người dùng SPACE
+  words[index].begin = null;
+  words[index].end = null;
+  timings[index] = null;
   if (index > 0 && timings[index - 1]) {
     timings[index - 1].end = null;
     words[index - 1].end = null;
   }
   endSyncStamped = false;
+  reSyncTargetIndex = index; // đánh dấu đang ở chế độ re-sync chọn lọc
   currentIndex = index;
   document.getElementById('exportBtn').disabled = true;
   document.getElementById('undoBtn').disabled = index === 0;
   clearEllipsisWatch();
   renderWords();
   updateStats();
-  setStatus(`Re-sync từ "${words[index].text}" ✓`, 'ok');
-  // Scroll tới từ active
+  setStatus(`Re-sync từ "${words[index].text}" — nhấn SPACE để stamp ✓`, 'ok');
   const el = document.getElementById(`word-${index}`);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
