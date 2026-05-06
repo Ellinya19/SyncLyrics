@@ -370,6 +370,26 @@
     animation: pulse-red 0.3s ease;
   }
 
+  .word-chip.editing {
+    outline: 2px solid var(--accent);
+    background: rgba(255,255,255,0.05);
+    color: var(--text);
+    cursor: text;
+    min-width: 30px;
+  }
+
+  .word-chip.re-sync {
+    border-color: var(--accent);
+    color: var(--accent);
+    cursor: pointer;
+    animation: pulse-resync 0.4s ease;
+  }
+
+  @keyframes pulse-resync {
+    0% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+
   @keyframes pulse-red {
     0% { transform: scale(1.1); }
     100% { transform: scale(1); }
@@ -765,6 +785,8 @@
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+          <div class="key-hint"><div class="key">DBLCLICK</div><span>Sửa từ trực tiếp</span></div>
+          <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync từ đây</span></div>
           <div class="status-msg" id="statusMsg"></div>
         </div>
       </div>
@@ -1105,9 +1127,20 @@ function renderWords() {
     }
     chip.textContent = w.text;
 
-    if (i < currentIndex) chip.classList.add('done');
+    if (i < currentIndex) {
+      chip.classList.add('done');
+      chip.title = 'Click để re-sync từ đây';
+      chip.style.cursor = 'pointer';
+      chip.addEventListener('click', () => reSyncFromWord(i));
+    }
     else if (i === currentIndex) chip.classList.add('active');
     else chip.classList.add('pending');
+
+    // Double-click để edit chip text
+    chip.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startEditChip(chip, i);
+    });
 
     canvas.appendChild(chip);
   });
@@ -1257,6 +1290,170 @@ function updateStats() {
     <span><b>${pct}%</b> done</span>
     ${currentIndex < total ? `<span>Next: <b>${words[currentIndex]?.text || '—'}</b></span>` : '<span style="color:var(--accent)"><b>COMPLETE</b></span>'}
   `;
+}
+
+// ─── RE-SYNC FROM WORD ────────────────────────────────────────────────────────
+function reSyncFromWord(index) {
+  if (index >= currentIndex) return; // chỉ cho phép click từ đã done
+  // Không xóa timing của các từ trước index
+  // Xóa timing của từ index trở đi
+  for (let i = index; i < words.length; i++) {
+    words[i].begin = null;
+    words[i].end = null;
+    timings[i] = null;
+  }
+  // Cũng xóa end của từ ngay trước index (nếu có)
+  if (index > 0 && timings[index - 1]) {
+    timings[index - 1].end = null;
+    words[index - 1].end = null;
+  }
+  endSyncStamped = false;
+  currentIndex = index;
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('undoBtn').disabled = index === 0;
+  clearEllipsisWatch();
+  renderWords();
+  updateStats();
+  setStatus(`Re-sync từ "${words[index].text}" ✓`, 'ok');
+  // Scroll tới từ active
+  const el = document.getElementById(`word-${index}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ─── INLINE CHIP EDIT ─────────────────────────────────────────────────────────
+function startEditChip(chip, index) {
+  if (chip.getAttribute('data-editing') === 'true') return;
+  chip.setAttribute('data-editing', 'true');
+  chip.classList.add('editing');
+  chip.contentEditable = 'true';
+  chip.focus();
+
+  // Đặt con trỏ về cuối
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(chip);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function finishEdit() {
+    chip.contentEditable = 'false';
+    chip.removeAttribute('data-editing');
+    chip.classList.remove('editing');
+    const newText = chip.textContent.trim();
+
+    if (newText === '') {
+      // Xóa word khỏi danh sách
+      words.splice(index, 1);
+      timings.splice(index, 1);
+      if (currentIndex > index) currentIndex--;
+      renderWords();
+      updateStats();
+      syncInputFromWords();
+      return;
+    }
+
+    // Kiểm tra có dấu \ không (người dùng thêm \ để tách)
+    if (newText.includes('\\')) {
+      const parts = newText.split('\\').filter(p => p.length > 0);
+      if (parts.length > 1) {
+        const baseLineIndex = words[index].lineIndex;
+        const baseBegin = words[index].begin;
+        const baseEnd = words[index].end;
+        // Tạo các word mới từ parts
+        const newWords = parts.map((part, idx) => ({
+          text: part,
+          ttmlText: part,
+          begin: idx === 0 ? baseBegin : null,
+          end: idx === 0 ? null : null,
+          lineIndex: baseLineIndex,
+          isBsPart: false,
+          bsIndex: -1,
+          isHyphenPart: false,
+          hyphenIndex: -1
+        }));
+        // Thay thế từ index bằng nhiều từ mới
+        words.splice(index, 1, ...newWords);
+        timings.splice(index, 1, ...newWords.map((w, idx) => idx === 0 && baseBegin !== null ? { begin: baseBegin, end: null } : null));
+        // Nếu từ bị split đã được sync (index < currentIndex), điều chỉnh currentIndex
+        if (index < currentIndex) {
+          currentIndex = currentIndex + parts.length - 1;
+        }
+        renderWords();
+        updateStats();
+        syncInputFromWords();
+        setStatus(`Tách "${newText.replace(/\\/g, '·')}" thành ${parts.length} từ ✓`, 'ok');
+        return;
+      }
+    }
+
+    // Cập nhật text bình thường
+    words[index].text = newText;
+    words[index].ttmlText = newText;
+    chip.textContent = newText;
+    syncInputFromWords();
+    setStatus('Đã cập nhật từ ✓', 'ok');
+  }
+
+  chip.addEventListener('keydown', function onKey(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      chip.removeEventListener('keydown', onKey);
+      chip.removeEventListener('blur', onBlur);
+      finishEdit();
+    } else if (e.key === 'Escape') {
+      chip.removeEventListener('keydown', onKey);
+      chip.removeEventListener('blur', onBlur);
+      // Hoàn tác: khôi phục text cũ
+      chip.textContent = words[index].text;
+      chip.contentEditable = 'false';
+      chip.removeAttribute('data-editing');
+      chip.classList.remove('editing');
+    }
+  });
+
+  function onBlur() {
+    chip.removeEventListener('keydown', () => {});
+    chip.removeEventListener('blur', onBlur);
+    finishEdit();
+  }
+  chip.addEventListener('blur', onBlur);
+}
+
+// ─── SYNC INPUT FROM WORDS ────────────────────────────────────────────────────
+function syncInputFromWords() {
+  // Tái tạo lyric text từ words array và đồng bộ vào textarea
+  if (words.length === 0) return;
+  const lineGroups = {};
+  words.forEach(w => {
+    if (!lineGroups[w.lineIndex]) lineGroups[w.lineIndex] = [];
+    lineGroups[w.lineIndex].push(w);
+  });
+  const sortedLines = Object.keys(lineGroups).map(Number).sort((a, b) => a - b);
+  const lines = [];
+  let prevLineIdx = null;
+  sortedLines.forEach(li => {
+    // Nếu có gap trong lineIndex (blank lines)
+    if (prevLineIdx !== null) {
+      const gap = li - prevLineIdx;
+      for (let g = 1; g < gap; g++) lines.push('');
+    }
+    const lineWords = lineGroups[li];
+    // Ghép lại: nếu là bsPart thì ghép liền, nếu không thì cách space
+    let lineText = '';
+    lineWords.forEach((w, wi) => {
+      if (wi === 0) {
+        lineText += w.text;
+      } else {
+        const prev = lineWords[wi - 1];
+        if (w.isBsPart && w.bsIndex > 0) lineText += '\\' + w.text;
+        else lineText += ' ' + w.text;
+      }
+    });
+    lines.push(lineText);
+    prevLineIdx = li;
+  });
+  document.getElementById('lyricsInput').value = lines.join('\n');
 }
 
 // ─── BACKING VOCAL FUNCTIONS ─────────────────────────────────────────────────
@@ -1583,8 +1780,9 @@ function setStatus(msg, type) {
 
 // ─── KEYBOARD ────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
-  // Don't intercept when typing in textarea
+  // Don't intercept when typing in textarea or editing a chip
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.target.getAttribute && e.target.getAttribute('contenteditable') === 'true') return;
 
   if (e.code === 'Space') {
     e.preventDefault();
