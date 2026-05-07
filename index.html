@@ -1709,7 +1709,9 @@ function exportTTML() {
       mainSpans = lineWords.map((w) => {
         if (w.isDotGroup) {
           const tStart = w.begin !== null ? w.begin : 0;
-          const tEnd = w.end !== null ? w.end : tStart + 1.5;
+          const nextEntryForDot = lineEntries[entryIdx + 1];
+          const nextWordBegin = nextEntryForDot ? nextEntryForDot[1][0].begin : null;
+          const tEnd = nextWordBegin !== null ? nextWordBegin - 0.1 : (w.end !== null ? w.end : tStart + 1.5);
           const step = (tEnd - tStart) / 3;
           return [0, 1, 2].map(di => {
             const b = toTTMLTime(tStart + di * step);
