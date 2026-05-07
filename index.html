@@ -501,17 +501,51 @@
     justify-content: flex-end;
   }
 
-  /* Status messages */
+  /* Status messages - Toast notification */
   .status-msg {
-    font-family: 'Space Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 1px;
-    margin-left: auto;
-    transition: all 0.3s;
+    display: none; /* hidden inline stubs, toast handles display */
   }
 
-  .status-msg.ok { color: var(--accent); }
-  .status-msg.err { color: var(--accent2); }
+  #toastNotif {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 9999;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    padding: 10px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    /* start hidden off-screen right */
+    transform: translateX(calc(100% + 36px));
+    opacity: 0;
+    transition: transform 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease;
+  }
+
+  #toastNotif.visible {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  #toastNotif.hiding-fast {
+    transform: translateX(calc(100% + 36px));
+    opacity: 0;
+    transition: transform 0.15s cubic-bezier(0.55,0,1,0.45), opacity 0.15s ease;
+  }
+
+  #toastNotif.hiding-slow {
+    transform: translateX(calc(100% + 36px));
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.55,0,1,0.45), opacity 0.35s ease;
+  }
+
+  #toastNotif.ok { color: var(--accent); border-color: var(--accent); }
+  #toastNotif.err { color: var(--accent2); border-color: var(--accent2); }
 
   /* Empty state */
   .empty-state {
@@ -680,8 +714,8 @@
   </div>
   <div class="header-controls">
   <div class="current-time-big" id="bigTime">⏱ <b>00:00.000</b></div>
-    <button class="btn danger" id="undoBtn" disabled onclick="undoLast()">↩ UNDO</button>
-    <button class="btn" id="resetBtn" onclick="resetOrDelete()">⟳ RESET</button>
+    <button class="btn" id="undoBtn" disabled onclick="undoLast()">↩ UNDO</button>
+    <button class="btn" id="resetBtn" onclick="resetOrDelete()" disabled>⟳ RESET</button>
     <button class="btn primary" id="exportBtn" onclick="exportTTML()" disabled>EXPORT TTML</button>
     <div class="theme-picker-wrapper" id="themePickerWrapper">
       <button class="theme-btn" id="themeToggleBtn" onclick="toggleThemeDropdown()">
@@ -770,7 +804,7 @@
       <div class="section-label" style="color:var(--s03-color);">04 — Lyrics</div>
       <textarea class="lyrics-textarea" id="lyricsInput" placeholder="Paste lyrics here..."></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button class="btn primary" style="flex:1" onclick="loadLyrics()">LOAD LYRICS</button>
+        <button class="btn primary" style="flex:1" id="loadLyricsBtn" onclick="handleLoadOrUpdateLyrics()">LOAD LYRICS</button>
       </div>
       </div>
 
@@ -780,7 +814,7 @@
       <div class="section-label" style="color:var(--s04-color);">05 — Additional Lyrics</div>
       <textarea class="lyrics-textarea" id="rvInput" placeholder="Paste right-side lyrics here..." style="border-color:color-mix(in srgb, var(--rv-color) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button class="btn" style="flex:1;border-color:var(--rv-color);color:var(--rv-color);" onclick="loadRV()">LOAD ADDITIONAL LYRICS</button>
+        <button class="btn" style="flex:1;border-color:var(--rv-color);color:var(--rv-color);" id="loadRVBtn" onclick="handleLoadOrUpdateRV()">LOAD ADDITIONAL LYRICS</button>
       </div>
       <div class="stats-bar" id="rvStatsBar" style="margin-top:10px;"></div>
     </div>
@@ -789,7 +823,7 @@
       <div class="section-label" style="color:var(--s05-color);">06 — Backing Vocal</div>
       <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:color-mix(in srgb, var(--accent) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button class="btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="loadBV()">LOAD BACKING VOCAL</button>
+        <button class="btn" style="flex:1;border-color:var(--accent);color:var(--accent);" id="loadBVBtn" onclick="handleLoadOrUpdateBV()">LOAD BACKING VOCAL</button>
       </div>
       <div class="stats-bar" id="bvStatsBar" style="margin-top:10px;"></div>
     </div>
@@ -829,12 +863,12 @@
         </div>
         <div class="instruction-bar">
           <div class="key-hint"><div class="key">HOLD SPACE/ARROW DOWN</div><span>Sync word (begin→end)</span></div>
-          <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
+          <div class="key-hint"><div class="key">Z / ↑</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
           <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
           <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
-          <div class="status-msg" id="statusMsg"></div>
+          <span class="status-msg" id="statusMsg"></span>
         </div>
       </div>
     </div>
@@ -858,7 +892,7 @@
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
           <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
           <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
-          <div class="status-msg" id="rvStatusMsg" style="color:var(--rv-color);"></div>
+          <span class="status-msg" id="rvStatusMsg"></span>
         </div>
       </div>
     </div>
@@ -882,7 +916,7 @@
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
           <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
           <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
-          <div class="status-msg" id="bvStatusMsg" style="color:var(--accent);"></div>
+          <span class="status-msg" id="bvStatusMsg"></span>
         </div>
       </div>
     </div>
@@ -961,6 +995,150 @@ function switchTab(tab) {
     document.getElementById('panel-' + t)?.classList.toggle('active', tab === t);
   });
   updateResetDeleteBtn();
+  updateUndoBtn();
+}
+
+// ─── LOAD / UPDATE BUTTON LOGIC ─────────────────────────────────────────────
+function updateLoadBtnState(btnId, hasTimedWords) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (hasTimedWords) {
+    btn.textContent = btn.id === 'loadLyricsBtn' ? 'UPDATE LYRICS' :
+                      btn.id === 'loadRVBtn' ? 'UPDATE ADDITIONAL LYRICS' : 'UPDATE BACKING VOCAL';
+    btn.classList.remove('primary');
+    btn.style.opacity = '';
+  } else {
+    btn.textContent = btn.id === 'loadLyricsBtn' ? 'LOAD LYRICS' :
+                      btn.id === 'loadRVBtn' ? 'LOAD ADDITIONAL LYRICS' : 'LOAD BACKING VOCAL';
+    if (btn.id === 'loadLyricsBtn') btn.classList.add('primary');
+  }
+}
+
+function refreshAllLoadBtns() {
+  updateLoadBtnState('loadLyricsBtn', words.some(w => w.begin !== null));
+  updateLoadBtnState('loadRVBtn', rvWords.some(w => w.begin !== null));
+  updateLoadBtnState('loadBVBtn', bvWords.some(w => w.begin !== null));
+}
+
+// Diff-based update: giữ nguyên timing các từ khớp, chỉ thêm/xóa/đổi từ thay đổi
+function applyDiffUpdate(oldWords, newTokens, currentIdxRef, endSyncRef) {
+  // newTokens: mảng flat {text, ttmlText, lineIndex, ...} từ parse input mới
+  // So sánh theo sequence: dùng LCS đơn giản theo text
+  const oldTexts = oldWords.map(w => w.text.toLowerCase());
+  const newTexts = newTokens.map(w => w.text.toLowerCase());
+
+  // Build LCS table
+  const m = oldTexts.length, n = newTexts.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = oldTexts[i-1] === newTexts[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+
+  // Backtrack to find matched pairs
+  const matched = []; // [{oldIdx, newIdx}]
+  let i = m, j = n;
+  while (i > 0 && j > 0) {
+    if (oldTexts[i-1] === newTexts[j-1]) { matched.unshift({oldIdx: i-1, newIdx: j-1}); i--; j--; }
+    else if (dp[i-1][j] >= dp[i][j-1]) i--;
+    else j--;
+  }
+
+  // Build result: iterate newTokens, if matched → keep old timing, else → new word no timing
+  const matchMap = {};
+  matched.forEach(({oldIdx, newIdx}) => { matchMap[newIdx] = oldIdx; });
+
+  const result = newTokens.map((tok, ni) => {
+    if (matchMap[ni] !== undefined) {
+      const old = oldWords[matchMap[ni]];
+      return { ...tok, begin: old.begin, end: old.end };
+    }
+    return { ...tok, begin: null, end: null };
+  });
+
+  // Recalculate currentIndex: first word without begin
+  let newCurrent = result.findIndex(w => w.begin === null);
+  if (newCurrent === -1) newCurrent = result.length;
+
+  return { result, newCurrentIndex: newCurrent };
+}
+
+function parseInputToTokens(raw, isDot) {
+  const tokens = [];
+  let lineIndex = 0;
+  const lines = raw.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === '') { lineIndex++; continue; }
+    const lineWords = trimmed.split(/\s+/).filter(w => w.length > 0);
+    for (const word of lineWords) {
+      if (isDot && word === '...') {
+        tokens.push({ text: '...', ttmlText: '...', lineIndex, isDotGroup: true, isDot: false, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
+      } else {
+        const subWords = splitWord(word);
+        for (const sw of subWords) {
+          tokens.push({ text: sw.display, ttmlText: sw.ttml, lineIndex, isBsPart: sw.isBsPart || false, bsIndex: sw.bsIndex !== undefined ? sw.bsIndex : -1, isHyphenPart: sw.isHyphenPart || false, hyphenIndex: sw.hyphenIndex !== undefined ? sw.hyphenIndex : -1 });
+        }
+      }
+    }
+    lineIndex++;
+  }
+  return tokens;
+}
+
+function handleLoadOrUpdateLyrics() {
+  const hasTimed = words.some(w => w.begin !== null);
+  if (!hasTimed) { loadLyrics(); return; }
+  // UPDATE mode
+  const raw = document.getElementById('lyricsInput').value.trim();
+  if (!raw) { setStatus('Paste lyrics first', 'err'); return; }
+  const newTokens = parseInputToTokens(raw, true);
+  if (newTokens.length === 0) { setStatus('No words found', 'err'); return; }
+  const { result, newCurrentIndex } = applyDiffUpdate(words, newTokens, currentIndex, endSyncStamped);
+  words = result;
+  timings = result.map(w => w.begin !== null ? { begin: w.begin, end: w.end } : null);
+  currentIndex = newCurrentIndex;
+  endSyncStamped = currentIndex >= words.length && words.length > 0 && words.every(w => w.begin !== null);
+  if (!endSyncStamped) document.getElementById('exportBtn').disabled = true;
+  reSyncTargetIndex = null;
+  renderWords(); updateStats(); updateUndoBtn(); updateResetDeleteBtn();
+  updateLoadBtnState('loadLyricsBtn', words.some(w => w.begin !== null));
+  setStatus(`Lyrics updated — ${result.filter(w=>w.begin!==null).length} timings preserved ✓`, 'ok');
+}
+
+function handleLoadOrUpdateRV() {
+  const hasTimed = rvWords.some(w => w.begin !== null);
+  if (!hasTimed) { loadRV(); return; }
+  const raw = document.getElementById('rvInput').value.trim();
+  if (!raw) { setRVStatus('Paste right lyrics first', 'err'); return; }
+  const newTokens = parseInputToTokens(raw, false);
+  if (newTokens.length === 0) { setRVStatus('No words found', 'err'); return; }
+  const { result, newCurrentIndex } = applyDiffUpdate(rvWords, newTokens, rvCurrentIndex, rvEndSyncStamped);
+  rvWords = result;
+  rvTimings = result.map(w => w.begin !== null ? { begin: w.begin, end: w.end } : null);
+  rvCurrentIndex = newCurrentIndex;
+  rvEndSyncStamped = rvCurrentIndex >= rvWords.length && rvWords.length > 0 && rvWords.every(w => w.begin !== null);
+  rvReSyncTargetIndex = null;
+  rvRenderWords(); rvUpdateStats();
+  updateLoadBtnState('loadRVBtn', rvWords.some(w => w.begin !== null));
+  setRVStatus(`Additional Lyrics updated — ${result.filter(w=>w.begin!==null).length} timings preserved ✓`, 'ok');
+}
+
+function handleLoadOrUpdateBV() {
+  const hasTimed = bvWords.some(w => w.begin !== null);
+  if (!hasTimed) { loadBV(); return; }
+  const raw = document.getElementById('bvInput').value.trim();
+  if (!raw) { setBVStatus('Paste backing vocal first', 'err'); return; }
+  const newTokens = parseInputToTokens(raw, false);
+  if (newTokens.length === 0) { setBVStatus('No words found', 'err'); return; }
+  const { result, newCurrentIndex } = applyDiffUpdate(bvWords, newTokens, bvCurrentIndex, bvEndSyncStamped);
+  bvWords = result;
+  bvTimings = result.map(w => w.begin !== null ? { begin: w.begin, end: w.end } : null);
+  bvCurrentIndex = newCurrentIndex;
+  bvEndSyncStamped = bvCurrentIndex >= bvWords.length && bvWords.length > 0 && bvWords.every(w => w.begin !== null);
+  bvReSyncTargetIndex = null;
+  bvRenderWords(); bvUpdateStats(); updateResetDeleteBtn();
+  updateLoadBtnState('loadBVBtn', bvWords.some(w => w.begin !== null));
+  setBVStatus(`Backing Vocal updated — ${result.filter(w=>w.begin!==null).length} timings preserved ✓`, 'ok');
 }
 
 // ─── TTML IMPORT ─────────────────────────────────────────────────────────────
@@ -1027,24 +1205,56 @@ function parseTTMLContent(xmlText, keepTiming) {
     }
 
     function spansToText(spanEls, withTiming) {
-      return Array.from(spanEls).map(sp => {
+      const spanArr = Array.from(spanEls).filter(sp => {
         const role = sp.getAttributeNS ? sp.getAttributeNS(ttmNS,'role') : sp.getAttribute('ttm:role');
-        if (role === 'x-bg') return null; // handled separately
+        return role !== 'x-bg';
+      });
+      const raw = spanArr.map((sp, si) => {
         const text = sp.textContent.trim();
         if (!text) return null;
+        // Detect nếu span này liền với span trước (không có space text node giữa = backslash-split)
+        let noSpaceBefore = false;
+        if (si > 0) {
+          const prev = spanArr[si - 1];
+          // Duyệt các node nằm giữa prev và sp trong parent
+          let node = prev.nextSibling;
+          let gapText = '';
+          while (node && node !== sp) {
+            if (node.nodeType === 3) gapText += node.textContent;
+            node = node.nextSibling;
+          }
+          noSpaceBefore = gapText.trim() === '' && gapText.indexOf(' ') === -1;
+        }
         if (withTiming) {
           const b = parseTime(sp.getAttribute('begin'));
           const e = parseTime(sp.getAttribute('end'));
-          return { text, begin: b, end: e };
+          return { text, begin: b, end: e, noSpaceBefore };
         }
-        return { text };
+        return { text, noSpaceBefore };
       }).filter(Boolean);
+
+      // Gộp 3 dấu chấm liên tiếp thành một token "..." (đảo ngược logic export ellipsis)
+      const merged = [];
+      let i = 0;
+      while (i < raw.length) {
+        if (raw[i].text === '.' && raw[i+1] && raw[i+1].text === '.' && raw[i+2] && raw[i+2].text === '.') {
+          merged.push({ text: '...', begin: raw[i].begin, end: raw[i+2].end });
+          i += 3;
+        } else {
+          merged.push(raw[i]);
+          i++;
+        }
+      }
+      return merged;
     }
 
     function buildLineText(tokens, withTiming) {
-      if (!withTiming) return tokens.map(t => t.text).join(' ');
-      // Format: word(begin→end) ... but we just return plain text for textarea
-      return tokens.map(t => t.text).join(' ');
+      if (!tokens.length) return '';
+      let result = tokens[0].text;
+      for (let i = 1; i < tokens.length; i++) {
+        result += (tokens[i].noSpaceBefore ? '\\' : ' ') + tokens[i].text;
+      }
+      return result;
     }
 
     function buildSyncedChips(canvas, tokens) {
@@ -1105,7 +1315,7 @@ function parseTTMLContent(xmlText, keepTiming) {
       words = []; timings = []; currentIndex = 0; endSyncStamped = false; reSyncTargetIndex = null;
       renderWords(); updateStats();
       document.getElementById('exportBtn').disabled = true;
-      document.getElementById('undoBtn').disabled = true;
+      updateUndoBtn();
     }
     if (rvLines.length) {
       document.getElementById('rvInput').value = rvLines.map(l => buildLineText(l, false)).join('\n');
@@ -1206,6 +1416,7 @@ function parseTTMLContent(xmlText, keepTiming) {
       }
     }
 
+    refreshAllLoadBtns();
     const total = mainLines.length + rvLines.length + bvLines.length;
     const msg = `✓ ${total} lines imported` + (keepTiming ? ` (with timing)` : ` (text only)`);
     document.getElementById('importStatusMsg').textContent = msg;
@@ -1361,7 +1572,8 @@ function loadLyrics() {
   updateStats();
   setStatus(`${words.length} words loaded ✓`, 'ok');
   document.getElementById('exportBtn').disabled = true;
-  document.getElementById('undoBtn').disabled = true;
+  updateUndoBtn();
+  updateLoadBtnState('loadLyricsBtn', false);
 }
 
 function renderWords() {
@@ -1485,7 +1697,7 @@ function stampWordStart() {
     if (badge) badge.textContent = formatTime(t);
   }
 
-  document.getElementById('undoBtn').disabled = false;
+  updateUndoBtn();
   updateStats();
   updateResetDeleteBtn();
 }
@@ -1505,7 +1717,7 @@ function stampWordEnd() {
       endSyncStamped = true;
       renderWords();
       setStatus('Sync complete ✓ — Export TTML!', 'ok');
-      document.getElementById('exportBtn').disabled = false;
+      checkExportReady();
     } else {
       setStatus('Sync already complete!', 'ok');
     }
@@ -1539,13 +1751,12 @@ function stampWordEnd() {
     // không tự highlight từ tiếp theo — chờ người dùng nhấn space
   } else {
     reSyncTargetIndex = null;
-    // Tự động hoàn thành sync khi từ cuối đã được stamp
     endSyncStamped = true;
     renderWords();
     setStatus('Sync complete ✓ — Export TTML!', 'ok');
-    document.getElementById('exportBtn').disabled = false;
   }
 
+  checkExportReady();
   updateStats();
 }
 
@@ -1554,7 +1765,7 @@ function undoLast() {
   // If undoing into endSync zone
   if (currentIndex >= words.length && endSyncStamped) {
     endSyncStamped = false;
-    document.getElementById('exportBtn').disabled = true;
+    checkExportReady();
     currentIndex = words.length - 1;
     words[currentIndex].begin = null;
     words[currentIndex].end = null;
@@ -1590,7 +1801,7 @@ function undoLast() {
   if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   document.getElementById('exportBtn').disabled = true;
-  if (currentIndex === 0) document.getElementById('undoBtn').disabled = true;
+  updateUndoBtn();
   updateStats();
   setStatus('Undo ✓', 'ok');
 }
@@ -1623,7 +1834,7 @@ function resetSync() {
     renderWords();
     updateStats();
     document.getElementById('exportBtn').disabled = true;
-    document.getElementById('undoBtn').disabled = true;
+    updateUndoBtn();
     setStatus('Reset ✓', 'ok');
   }
   updateResetDeleteBtn();
@@ -1658,6 +1869,19 @@ function updateResetDeleteBtn() {
   }
 }
 
+function updateUndoBtn() {
+  const btn = document.getElementById('undoBtn');
+  if (activeTab === 'rv') {
+    const hasSynced = rvWords.some(w => w.begin !== null);
+    btn.disabled = !hasSynced;
+  } else if (activeTab === 'bv') {
+    const hasSynced = bvWords.some(w => w.begin !== null);
+    btn.disabled = !hasSynced;
+  } else {
+    btn.disabled = currentIndex === 0;
+  }
+}
+
 function resetOrDelete() {
   const btn = document.getElementById('resetBtn');
   const isDelete = btn.textContent.includes('DELETE');
@@ -1678,13 +1902,14 @@ function resetOrDelete() {
       document.getElementById('lyricsInput').value = '';
       renderWords(); updateStats();
       document.getElementById('exportBtn').disabled = true;
-      document.getElementById('undoBtn').disabled = true;
+      updateUndoBtn();
       setStatus('Deleted Lyrics ✓', 'ok');
     }
   } else {
     resetSync();
   }
   updateResetDeleteBtn();
+  refreshAllLoadBtns();
 }
 
 function updateStats() {
@@ -1950,6 +2175,7 @@ function loadBV() {
   bvUpdateStats();
   setBVStatus(`${bvWords.length} BV words loaded ✓`, 'ok');
   document.getElementById('exportBtn').disabled = true;
+  updateLoadBtnState('loadBVBtn', false);
 }
 
 function bvRenderWords() {
@@ -2052,9 +2278,7 @@ function bvStampWordEnd() {
       bvEndSyncStamped = true;
       bvRenderWords();
       setBVStatus('BV sync complete ✓ — Export TTML!', 'ok');
-      if (endSyncStamped || words.length === 0) {
-        document.getElementById('exportBtn').disabled = false;
-      }
+      checkExportReady();
     } else {
       setBVStatus('Sync complete ✓', 'ok');
     }
@@ -2088,11 +2312,9 @@ function bvStampWordEnd() {
     bvEndSyncStamped = true;
     bvRenderWords();
     setBVStatus('BV sync complete ✓ — Export TTML!', 'ok');
-    if (endSyncStamped || words.length === 0) {
-      document.getElementById('exportBtn').disabled = false;
-    }
   }
 
+  checkExportReady();
   bvUpdateStats();
 }
 
@@ -2100,7 +2322,7 @@ function bvUndoLast() {
   if (bvCurrentIndex === 0 && !bvEndSyncStamped) return;
   if (bvEndSyncStamped) {
     bvEndSyncStamped = false;
-    document.getElementById('exportBtn').disabled = true;
+    checkExportReady();
   }
   if (bvCurrentIndex === 0) { bvRenderWords(); bvUpdateStats(); setBVStatus('Undo BV ✓', 'ok'); return; }
   bvCurrentIndex--;
@@ -2112,7 +2334,7 @@ function bvUndoLast() {
     bvWords[bvCurrentIndex - 1].end = null;
   }
   bvRenderWords();
-  document.getElementById('exportBtn').disabled = true;
+  checkExportReady();
   if (bvCurrentIndex === 0) document.getElementById('undoBtn').disabled = true;
   bvUpdateStats();
   setBVStatus('Undo BV ✓', 'ok');
@@ -2130,10 +2352,7 @@ function bvUpdateStats() {
 }
 
 function setBVStatus(msg, type) {
-  const el = document.getElementById('bvStatusMsg');
-  el.textContent = msg;
-  el.className = `status-msg ${type}`;
-  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+  setStatus(msg, type);
 }
 
 function bvReSyncFromWord(index) {
@@ -2254,6 +2473,7 @@ function loadRV() {
   rvUpdateStats();
   setRVStatus(`${rvWords.length} right lyrics words loaded ✓`, 'ok');
   document.getElementById('exportBtn').disabled = true;
+  updateLoadBtnState('loadRVBtn', false);
 }
 
 function rvRenderWords() {
@@ -2356,9 +2576,7 @@ function rvStampWordEnd() {
       rvEndSyncStamped = true;
       rvRenderWords();
       setRVStatus('Right lyrics sync complete ✓ — Export TTML!', 'ok');
-      if ((endSyncStamped || words.length === 0) && (bvEndSyncStamped || bvWords.length === 0)) {
-        document.getElementById('exportBtn').disabled = false;
-      }
+      checkExportReady();
     } else {
       setRVStatus('Sync complete ✓', 'ok');
     }
@@ -2390,11 +2608,9 @@ function rvStampWordEnd() {
     rvEndSyncStamped = true;
     rvRenderWords();
     setRVStatus('Right lyrics sync complete ✓ — Export TTML!', 'ok');
-    if ((endSyncStamped || words.length === 0) && (bvEndSyncStamped || bvWords.length === 0)) {
-      document.getElementById('exportBtn').disabled = false;
-    }
   }
 
+  checkExportReady();
   rvUpdateStats();
 }
 
@@ -2402,7 +2618,7 @@ function rvUndoLast() {
   if (rvCurrentIndex === 0 && !rvEndSyncStamped) return;
   if (rvEndSyncStamped) {
     rvEndSyncStamped = false;
-    document.getElementById('exportBtn').disabled = true;
+    checkExportReady();
   }
   if (rvCurrentIndex === 0) { rvRenderWords(); rvUpdateStats(); setRVStatus('Undo RV ✓', 'ok'); return; }
   rvCurrentIndex--;
@@ -2414,7 +2630,7 @@ function rvUndoLast() {
     rvWords[rvCurrentIndex - 1].end = null;
   }
   rvRenderWords();
-  document.getElementById('exportBtn').disabled = true;
+  checkExportReady();
   if (rvCurrentIndex === 0) document.getElementById('undoBtn').disabled = true;
   rvUpdateStats();
   setRVStatus('Undo RV ✓', 'ok');
@@ -2432,10 +2648,7 @@ function rvUpdateStats() {
 }
 
 function setRVStatus(msg, type) {
-  const el = document.getElementById('rvStatusMsg');
-  el.textContent = msg;
-  el.className = `status-msg ${type}`;
-  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+  setStatus(msg, type);
 }
 
 function rvReSyncFromWord(index) {
@@ -2523,6 +2736,16 @@ function rvStartEditChip(chip, index) {
   });
   function onBlur() { chip.removeEventListener('keydown', () => {}); chip.removeEventListener('blur', onBlur); finishEdit(); }
   chip.addEventListener('blur', onBlur);
+}
+
+// ─── CHECK EXPORT READY ──────────────────────────────────────────────────────
+function checkExportReady() {
+  const mainOk = words.length === 0 || (words.every(w => w.begin !== null) && words[words.length-1]?.end !== null);
+  const rvOk   = rvWords.length === 0 || (rvWords.every(w => w.begin !== null) && rvWords[rvWords.length-1]?.end !== null);
+  const bvOk   = bvWords.length === 0 || (bvWords.every(w => w.begin !== null) && bvWords[bvWords.length-1]?.end !== null);
+  const ready  = mainOk && rvOk && bvOk && (words.length > 0 || rvWords.length > 0 || bvWords.length > 0);
+  document.getElementById('exportBtn').disabled = !ready;
+  return ready;
 }
 
 // ─── TTML EXPORT ─────────────────────────────────────────────────────────────
@@ -2807,11 +3030,43 @@ function formatTime(sec) {
   return `${String(m).padStart(2,'0')}:${s.toFixed(3).padStart(6,'0')}`;
 }
 
+let _toastTimer = null;
+let _toastHideTimer = null;
+
 function setStatus(msg, type) {
-  const el = document.getElementById('statusMsg');
-  el.textContent = msg;
-  el.className = `status-msg ${type}`;
-  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+  const toast = document.getElementById('toastNotif');
+  const isVisible = toast.classList.contains('visible');
+
+  const showToast = () => {
+    toast.textContent = msg;
+    toast.className = `ok`; // reset
+    toast.classList.add(type || 'ok');
+    toast.id = 'toastNotif';
+    // force reflow to restart transition
+    void toast.offsetWidth;
+    toast.classList.add('visible');
+
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => hideToast(false), 3000);
+  };
+
+  const hideToast = (fast) => {
+    toast.classList.remove('visible');
+    toast.classList.add(fast ? 'hiding-fast' : 'hiding-slow');
+    if (_toastHideTimer) clearTimeout(_toastHideTimer);
+    _toastHideTimer = setTimeout(() => {
+      toast.classList.remove('hiding-fast', 'hiding-slow');
+    }, fast ? 160 : 370);
+  };
+
+  if (isVisible) {
+    // có thông báo đang hiện → thụt nhanh rồi show mới
+    if (_toastTimer) clearTimeout(_toastTimer);
+    hideToast(true);
+    setTimeout(showToast, 170);
+  } else {
+    showToast();
+  }
 }
 
 // ─── KEYBOARD ────────────────────────────────────────────────────────────────
@@ -2828,7 +3083,7 @@ document.addEventListener('keydown', (e) => {
       spaceHeld = true;
       if (activeTab === 'bv') bvStampWordStart(); else if (activeTab === 'rv') rvStampWordStart(); else stampWordStart();
     }
-  } else if (e.code === 'KeyZ') {
+  } else if (e.code === 'KeyZ' || e.code === 'ArrowUp') {
     e.preventDefault();
     if (activeTab === 'bv') bvUndoLast(); else if (activeTab === 'rv') rvUndoLast(); else undoLast();
   } else if (e.code === 'KeyP') {
@@ -2958,5 +3213,6 @@ function toggleInfoPanel() {
   document.getElementById('infoPanel').classList.toggle('visible', infoPanelOpen);
 }
 </script>
+<div id="toastNotif"></div>
 </body>
 </html>
