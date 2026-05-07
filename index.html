@@ -995,9 +995,7 @@ function loadLyrics() {
     const lineWords = trimmed.split(/\s+/).filter(w => w.length > 0);
     for (const word of lineWords) {
       if (word === '...') {
-        for (let di = 0; di < 3; di++) {
-          words.push({ text: '.', ttmlText: '.', begin: null, end: null, lineIndex, isDot: true, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
-        }
+        words.push({ text: '...', ttmlText: '...', begin: null, end: null, lineIndex, isDotGroup: true, isDot: false, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
       } else {
         const subWords = splitWord(word);
         for (const sw of subWords) {
@@ -1705,19 +1703,22 @@ function exportTTML() {
     const nextEntry = lineEntries[entryIdx + 1];
     const rawEnd = lineWords[lineWords.length-1].end || lineWords[lineWords.length-1].begin + 0.5;
     const pe = toTTMLTime(nextEntry ? nextEntry[1][0].begin : rawEnd);
-    const allDots = lineWords.every(w => w.isDot);
+    const hasDotGroup = lineWords.some(w => w.isDotGroup);
     let mainSpans;
-    if (allDots) {
-      // Tính thời gian từ prev word (entry trước) và next word (entry sau)
-      const prevEntry = lineEntries[entryIdx - 1];
-      const nextEntry2 = lineEntries[entryIdx + 1];
-      const tStart = prevEntry ? (prevEntry[1][prevEntry[1].length - 1].end || prevEntry[1][prevEntry[1].length - 1].begin + 0.5) : lineWords[0].begin;
-      const tEnd = nextEntry2 ? nextEntry2[1][0].begin : (lineWords[lineWords.length - 1].end || tStart + lineWords.length);
-      const count = lineWords.length;
-      const step = (tEnd - tStart) / count;
-      mainSpans = lineWords.map((w, di) => {
-        const b = toTTMLTime(tStart + di * step);
-        const e = toTTMLTime(tStart + (di + 1) * step);
+    if (hasDotGroup) {
+      mainSpans = lineWords.map((w) => {
+        if (w.isDotGroup) {
+          const tStart = w.begin !== null ? w.begin : 0;
+          const tEnd = w.end !== null ? w.end : tStart + 1.5;
+          const step = (tEnd - tStart) / 3;
+          return [0, 1, 2].map(di => {
+            const b = toTTMLTime(tStart + di * step);
+            const e = toTTMLTime(tStart + (di + 1) * step);
+            return `<span begin="${b}" end="${e}">.</span>`;
+          }).join('');
+        }
+        const b = toTTMLTime(w.begin);
+        const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
         return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
       }).join('');
     } else {
