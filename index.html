@@ -1780,7 +1780,7 @@ return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex+
 
   const agentMeta = `<ttm:agent type="person" xml:id="v1"/>`;
 
-  const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:amll="http://www.example.com/ns/amll" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word"><head><metadata>${agentMeta}</metadata></head><body dur="${durStr}"><div begin="${firstBegin}" end="${lastEnd}">\n${pTags}\n    </div></body></tt>`;
+  const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:amll="http://www.example.com/ns/amll" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word"><!-- The TTML was created using Ellinya's tool --><head><metadata>${agentMeta}</metadata></head><body dur="${durStr}"><div begin="${firstBegin}" end="${lastEnd}">\n${pTags}\n    </div></body></tt>`;
 
   document.getElementById('ttmlOutput').textContent = ttml;
   document.getElementById('modalOverlay').classList.add('visible');
