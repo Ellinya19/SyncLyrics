@@ -276,17 +276,19 @@
   }
 
   #playbackSection {
-    position: absolute;
+    position: fixed;
     bottom: 4vh;
     right: 2vw;
     width: min(420px, 90vw);
     background: var(--surface);
     border: 1px solid var(--border);
-    padding: 16px;
+    padding: 0;
     box-shadow: 0 8px 32px rgba(0,0,0,0.6);
     z-index: 500;
-    cursor: grab;
+    cursor: default;
     user-select: none;
+    border-radius: 10px;
+    overflow: hidden;
   }
 
   .lyrics-input-area {
@@ -707,8 +709,8 @@
   /* ─── SYNC BUTTON PAD ─────────────────────────────────────────────────────── */
   #syncButtonPad {
     position: fixed;
-    bottom: 4vh;
-    left: 2vw;
+    bottom: calc(4vh + 140px);
+    right: 2vw;
     width: min(180px, 46vw);
     background: var(--surface);
     border: 1px solid var(--border);
@@ -718,6 +720,34 @@
     user-select: none;
     border-radius: 10px;
     overflow: hidden;
+  }
+
+  #playbackSection .drag-handle {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 7px 12px;
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-radius: 10px 10px 0 0;
+  }
+
+  #playbackSection .drag-handle:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--accent);
+  }
+
+  #playbackSection .drag-handle:active { cursor: grabbing; }
+
+  #playbackSection .playback-inner {
+    padding: 14px 16px 16px;
   }
 
   #syncButtonPad .pad-label {
@@ -966,7 +996,9 @@
     </div>
 
     <div id="playbackSection">
-      <div class="section-label" style="color:var(--s02-color);">03 — Playback</div>
+      <div class="drag-handle" id="playbackDragHandle">⠿ 03 — Playback</div>
+      <div class="playback-inner">
+      <div class="section-label" style="color:var(--s02-color);margin-bottom:8px;">03 — Playback</div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;">
         <div class="time-display" style="justify-content:flex-start;gap:8px;flex-shrink:0;">
           <span id="currentTime">00:00.000</span>
@@ -985,6 +1017,7 @@
           <option value="1.25">1.25×</option>
         </select>
         <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;white-space:nowrap;">HOLD SPACE / ↓ to sync</span>
+      </div>
       </div>
     </div>
 
@@ -3341,18 +3374,18 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
 // ─── SYNC BUTTON PAD (draggable) ─────────────────────────────────────────────
 (function() {
   const pad = document.getElementById('syncButtonPad');
+  const padHandle = pad.querySelector('.pad-label');
   let dragging = false, ox = 0, oy = 0;
-  pad.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'BUTTON') return;
+  padHandle.addEventListener('mousedown', (e) => {
     dragging = true;
     const rect = pad.getBoundingClientRect();
     ox = e.clientX - rect.left;
     oy = e.clientY - rect.top;
-    pad.style.position = 'fixed';
     pad.style.left = rect.left + 'px';
     pad.style.top = rect.top + 'px';
     pad.style.bottom = 'auto';
-    pad.style.cursor = 'grabbing';
+    pad.style.right = 'auto';
+    padHandle.style.cursor = 'grabbing';
     e.preventDefault();
   });
   document.addEventListener('mousemove', (e) => {
@@ -3364,20 +3397,19 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
     pad.style.left = x + 'px';
     pad.style.top = y + 'px';
   });
-  document.addEventListener('mouseup', () => { dragging = false; pad.style.cursor = 'grab'; });
+  document.addEventListener('mouseup', () => { dragging = false; padHandle.style.cursor = 'grab'; });
 
   // Touch drag for pad
-  pad.addEventListener('touchstart', (e) => {
-    if (e.target.tagName === 'BUTTON') return;
+  padHandle.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
     dragging = true;
     const rect = pad.getBoundingClientRect();
     ox = t.clientX - rect.left;
     oy = t.clientY - rect.top;
-    pad.style.position = 'fixed';
     pad.style.left = rect.left + 'px';
     pad.style.top = rect.top + 'px';
     pad.style.bottom = 'auto';
+    pad.style.right = 'auto';
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
     if (!dragging) return;
@@ -3506,19 +3538,18 @@ function closeThemeDropdown() {
 // ─── DRAGGABLE PLAYBACK ───────────────────────────────────────────────────────
 (function() {
   const el = document.getElementById('playbackSection');
+  const handle = document.getElementById('playbackDragHandle');
   let dragging = false, ox = 0, oy = 0;
-  el.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+  handle.addEventListener('mousedown', (e) => {
     dragging = true;
     const rect = el.getBoundingClientRect();
     ox = e.clientX - rect.left;
     oy = e.clientY - rect.top;
-    el.style.position = 'fixed';
     el.style.right = 'auto';
     el.style.bottom = 'auto';
     el.style.left = rect.left + 'px';
     el.style.top = rect.top + 'px';
-    el.style.cursor = 'grabbing';
+    handle.style.cursor = 'grabbing';
     e.preventDefault();
   });
   document.addEventListener('mousemove', (e) => {
@@ -3530,7 +3561,7 @@ function closeThemeDropdown() {
     el.style.left = x + 'px';
     el.style.top = y + 'px';
   });
-  document.addEventListener('mouseup', () => { dragging = false; el.style.cursor = 'grab'; });
+  document.addEventListener('mouseup', () => { dragging = false; handle.style.cursor = 'grab'; });
 })();
 
 document.addEventListener('click', (e) => {
