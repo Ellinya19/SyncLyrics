@@ -879,6 +879,21 @@
     .sync-tabs::-webkit-scrollbar { display: none; }
     .sync-tab { padding: 10px 14px; font-size: 9px; }
 
+    /* Mobile swipe between sync panels */
+    .right-panels { overflow: hidden; position: relative; }
+    .sync-panels-wrapper {
+      display: flex;
+      flex-direction: row;
+      width: 300%;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .sync-panels-wrapper .sync-panel {
+      flex: 0 0 33.3333%;
+      width: 33.3333%;
+      display: flex !important;
+      flex-direction: column;
+    }
+
     /* Mobile bottom bar for sync actions */
     .mobile-sync-bar {
       position: fixed;
@@ -1052,7 +1067,7 @@
       <div class="stats-bar" id="bvStatsBar" style="margin-top:10px;"></div>
     </div>
 
-    <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;order:999;">
+    <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;order:999;padding-bottom:70px;">
       <div class="section-label" style="color:#ff6eb4;">Credits</div>
       <div style="background:var(--surface);border:1px solid rgba(255,110,180,0.3);padding:14px;display:flex;flex-direction:column;gap:6px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ff6eb4;line-height:1;">By Ellinya 🌸</div>
@@ -1073,6 +1088,7 @@
       <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--s05-color) 50%, transparent);">05 — BACKING VOCAL</button>
     </div>
 
+    <div class="sync-panels-wrapper" id="syncPanelsWrapper">
     <!-- LYRIC SYNC PANEL -->
     <div class="sync-panel active" id="panel-lyric">
       <div class="right-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
@@ -1144,6 +1160,7 @@
         </div>
       </div>
     </div>
+  </div><!-- end sync-panels-wrapper -->
   <div id="importCanvas" style="display:none;"></div>
   <div id="importStatusMsg" style="display:none;"></div>
   </div>
@@ -3373,6 +3390,66 @@ document.getElementById('lyricsInput').value = defaultLyrics;
 
 // ─── DEVICE DETECTION ────────────────────────────────────────────────────────
 const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+// ─── MOBILE SWIPE TABS ───────────────────────────────────────────────────────
+(function() {
+  const tabOrder = ['lyric', 'rv', 'bv'];
+  const wrapper = document.getElementById('syncPanelsWrapper');
+  if (!wrapper) return;
+
+  function getMobileTabIndex() { return tabOrder.indexOf(activeTab); }
+
+  function applySwipePosition(idx, animate) {
+    if (window.innerWidth > 768) return;
+    wrapper.style.transition = animate ? 'transform 0.3s cubic-bezier(0.4,0,0.2,1)' : 'none';
+    wrapper.style.transform = `translateX(-${idx * 33.3333}%)`;
+  }
+
+  // Patch switchTab to also move wrapper on mobile
+  const _origSwitchTab = switchTab;
+  window.switchTab = function(tab) {
+    _origSwitchTab(tab);
+    const idx = tabOrder.indexOf(tab);
+    if (idx >= 0) applySwipePosition(idx, true);
+  };
+
+  // Initialize position
+  applySwipePosition(0, false);
+  window.addEventListener('resize', () => applySwipePosition(getMobileTabIndex(), false));
+
+  // Touch swipe detection
+  let tx0 = 0, ty0 = 0, swiping = false;
+  wrapper.addEventListener('touchstart', (e) => {
+    tx0 = e.touches[0].clientX;
+    ty0 = e.touches[0].clientY;
+    swiping = true;
+  }, { passive: true });
+  wrapper.addEventListener('touchmove', (e) => {
+    if (!swiping || window.innerWidth > 768) return;
+    const dx = e.touches[0].clientX - tx0;
+    const dy = e.touches[0].clientY - ty0;
+    if (Math.abs(dy) > Math.abs(dx) * 1.5) { swiping = false; return; }
+    // live drag preview
+    const idx = getMobileTabIndex();
+    const base = idx * 33.3333;
+    const delta = (dx / window.innerWidth) * 100;
+    wrapper.style.transition = 'none';
+    wrapper.style.transform = `translateX(calc(-${base}% + ${dx}px))`;
+  }, { passive: true });
+  wrapper.addEventListener('touchend', (e) => {
+    if (!swiping || window.innerWidth > 768) { swiping = false; return; }
+    swiping = false;
+    const dx = e.changedTouches[0].clientX - tx0;
+    const idx = getMobileTabIndex();
+    if (dx < -50 && idx < tabOrder.length - 1) {
+      switchTab(tabOrder[idx + 1]);
+    } else if (dx > 50 && idx > 0) {
+      switchTab(tabOrder[idx - 1]);
+    } else {
+      applySwipePosition(idx, true);
+    }
+  }, { passive: true });
+})();
 
 // ─── SYNC BUTTON PAD (draggable) ─────────────────────────────────────────────
 (function() {
