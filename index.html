@@ -17,6 +17,7 @@
     --muted: #666666;
     --done: #1e1e1e;
     --active-glow: 0 0 30px rgba(220, 220, 220, 0.3);
+    --rv-color: #6eb4ff;
   }
 
   .theme-ellinya {
@@ -29,6 +30,7 @@
     --muted: #7a4d60;
     --done: #2a1020;
     --active-glow: 0 0 30px rgba(255, 110, 180, 0.45);
+    --rv-color: #ffb347;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -751,10 +753,10 @@
     <div class="stats-bar" id="statsBar"></div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:#6eb4ff;">04 — ADDITIONAL LYRICS</div>
-      <textarea class="lyrics-textarea" id="rvInput" placeholder="Paste right-side lyrics here..." style="border-color:color-mix(in srgb, #6eb4ff 30%, transparent);"></textarea>
+      <div class="section-label" style="color:var(--rv-color);">04 — ADDITIONAL LYRICS</div>
+      <textarea class="lyrics-textarea" id="rvInput" placeholder="Paste right-side lyrics here..." style="border-color:color-mix(in srgb, var(--rv-color) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button class="btn" style="flex:1;border-color:#6eb4ff;color:#6eb4ff;" onclick="loadRV()">LOAD ADDITIONAL LYRICS</button>
+        <button class="btn" style="flex:1;border-color:var(--rv-color);color:var(--rv-color);" onclick="loadRV()">LOAD ADDITIONAL LYRICS</button>
       </div>
       <div class="stats-bar" id="rvStatsBar" style="margin-top:10px;"></div>
     </div>
@@ -785,7 +787,7 @@
   <div class="right-panels">
     <div class="sync-tabs">
       <button class="sync-tab active" id="tab-lyric" onclick="switchTab('lyric')">03 — LYRIC SYNC</button>
-      <button class="sync-tab" id="tab-rv" onclick="switchTab('rv')" style="color:color-mix(in srgb, #6eb4ff 50%, transparent);">04 — ADDITIONAL LYRICS</button>
+      <button class="sync-tab" id="tab-rv" onclick="switchTab('rv')" style="color:color-mix(in srgb, var(--rv-color) 50%, transparent);">04 — ADDITIONAL LYRICS</button>
       <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--accent) 50%, transparent);">05 — BACKING VOCAL</button>
     </div>
 
@@ -820,17 +822,17 @@
           <div class="word-canvas" id="rvCanvas">
             <div class="empty-state">
               <div class="big-icon" style="filter:hue-rotate(200deg);">🎤</div>
-              <h3 style="color:#6eb4ff;">ADDITIONAL LYRICS</h3>
+              <h3 style="color:var(--rv-color);">ADDITIONAL LYRICS</h3>
               <p>Load right-side lyrics in section 04, then sync here.</p>
             </div>
           </div>
         </div>
-        <div class="instruction-bar" style="border-top-color:color-mix(in srgb, #6eb4ff 20%, transparent);">
+        <div class="instruction-bar" style="border-top-color:color-mix(in srgb, var(--rv-color) 20%, transparent);">
           <div class="key-hint"><div class="key">HOLD SPACE/ARROW DOWN</div><span>Sync word (begin→end)</span></div>
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
-          <div class="status-msg" id="rvStatusMsg" style="color:#6eb4ff;"></div>
+          <div class="status-msg" id="rvStatusMsg" style="color:var(--rv-color);"></div>
         </div>
       </div>
     </div>
