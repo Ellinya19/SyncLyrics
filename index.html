@@ -650,6 +650,10 @@
     padding: 2px 8px;
     flex-shrink: 0;
     margin-top: 2px;
+    width: 42px;
+    display: inline-block;
+    text-align: center;
+    box-sizing: border-box;
   }
 </style>
 </head>
@@ -688,6 +692,10 @@
           <span>Insert <b>\</b> between characters to split a word into multiple sync units while keeping the original display.<br>
           Example: <b>Do\ra\e\mon</b> → synced as <b>Do · ra · e · mon</b>, displayed as <b>Doraemon</b>.</span>
         </div>
+        <div class="info-panel-item" style="margin-top:10px;">
+          <span class="info-panel-key">...</span>
+          <span>Entering <b>...</b> (ellipsis) in the lyrics will represent a section without lyrics. When exported, the ellipsis will be split into three separate dots spaced evenly apart.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -725,7 +733,7 @@
           <option value="1" selected>1×</option>
           <option value="1.25">1.25×</option>
         </select>
-        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;">SPACE to stamp</span>
+        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;">HOLD SPACE to sync</span>
       </div>
     </div>
 
@@ -740,10 +748,10 @@
     <div class="stats-bar" id="statsBar"></div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:#6eb4ff;">04 — Backing Vocal</div>
-      <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:rgba(110,180,255,0.3);"></textarea>
+      <div class="section-label" style="color:var(--accent);">04 — Backing Vocal</div>
+      <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:color-mix(in srgb, var(--accent) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button class="btn" style="flex:1;border-color:#6eb4ff;color:#6eb4ff;" onclick="loadBV()">LOAD BACKING VOCAL</button>
+        <button class="btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="loadBV()">LOAD BACKING VOCAL</button>
       </div>
       <div class="stats-bar" id="bvStatsBar" style="margin-top:10px;"></div>
     </div>
@@ -765,7 +773,7 @@
   <div class="right-panels">
     <div class="sync-tabs">
       <button class="sync-tab active" id="tab-lyric" onclick="switchTab('lyric')">03 — LYRIC SYNC</button>
-      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:#6eb4ff80;">04 — BACKING VOCAL</button>
+      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--accent) 50%, transparent);">04 — BACKING VOCAL</button>
     </div>
 
     <!-- LYRIC SYNC PANEL -->
@@ -781,7 +789,7 @@
           </div>
         </div>
         <div class="instruction-bar">
-          <div class="key-hint"><div class="key">SPACE</div><span>Stamp next word</span></div>
+          <div class="key-hint"><div class="key">HOLD SPACE</div><span>Sync word (begin→end)</span></div>
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
@@ -799,17 +807,17 @@
           <div class="word-canvas" id="bvCanvas">
             <div class="empty-state">
               <div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div>
-              <h3 style="color:#6eb4ff;">Backing Vocal</h3>
+              <h3 style="color:var(--accent);">Backing Vocal</h3>
               <p>Load backing vocal lyrics in section 04, then sync here.</p>
             </div>
           </div>
         </div>
-        <div class="instruction-bar" style="border-top-color:rgba(110,180,255,0.2);">
-          <div class="key-hint"><div class="key">SPACE</div><span>Stamp next word</span></div>
+        <div class="instruction-bar" style="border-top-color:color-mix(in srgb, var(--accent) 20%, transparent);">
+          <div class="key-hint"><div class="key">HOLD SPACE</div><span>Sync word (begin→end)</span></div>
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
-          <div class="status-msg" id="bvStatusMsg" style="color:#6eb4ff;"></div>
+          <div class="status-msg" id="bvStatusMsg" style="color:var(--accent);"></div>
         </div>
       </div>
     </div>
@@ -858,106 +866,6 @@ function switchTab(tab) {
   document.getElementById('tab-bv').classList.toggle('active', tab === 'bv');
   document.getElementById('panel-lyric').classList.toggle('active', tab === 'lyric');
   document.getElementById('panel-bv').classList.toggle('active', tab === 'bv');
-}
-
-// ─── ELLIPSIS SUGGESTION ─────────────────────────────────────────────────────
-let lastStampTime = null;        // wall-clock Date.ms of last stamp
-let ellipsisTimer = null;        // setTimeout handle
-let ellipsisPopup = null;        // DOM element
-let ellipsisTargetIndex = null;  // which word triggered the popup
-
-function startEllipsisWatch(wordIndex) {
-  clearEllipsisWatch();
-  lastStampTime = Date.now();
-  ellipsisTargetIndex = wordIndex;
-  ellipsisTimer = setTimeout(() => {
-    showEllipsisPopup(wordIndex);
-  }, 5000);
-}
-
-function clearEllipsisWatch() {
-  if (ellipsisTimer) { clearTimeout(ellipsisTimer); ellipsisTimer = null; }
-  hideEllipsisPopup();
-}
-
-function showEllipsisPopup(wordIndex) {
-  hideEllipsisPopup();
-  const chip = document.getElementById(`word-${wordIndex - 1}`);
-  if (!chip) return;
-  const popup = document.createElement('div');
-  popup.id = 'ellipsis-popup';
-  popup.style.cssText = `
-    position:fixed;
-    background:#1a1a1a;
-    border:1px solid var(--accent);
-    padding:5px 8px;
-    font-family:'Space Mono',monospace;
-    font-size:10px;
-    color:var(--text);
-    z-index:9999;
-    white-space:normal;
-    max-width:260px;
-    flex-wrap:wrap;
-    box-shadow:0 2px 10px rgba(0,0,0,0.5);
-    pointer-events:all;
-    display:flex;
-    align-items:center;
-    gap:6px;
-  `;
-  popup.innerHTML = `
-    <span style="color:var(--accent);font-size:9px;line-height:1.4;">You haven't synced to the next word after 5 seconds, would you like to add "..."?</span>
-    <button onclick="acceptEllipsis()" style="background:var(--accent);color:#000;border:none;padding:2px 7px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;font-weight:700;">✓</button>
-    <button onclick="rejectEllipsis()" style="background:transparent;color:var(--muted);border:1px solid var(--muted);padding:2px 7px;font-family:'Space Mono',monospace;font-size:9px;cursor:pointer;">✕</button>
-  `;
-
-  // Position right next to the chip
-  const rect = chip.getBoundingClientRect();
-  popup.style.left = (rect.right + 6) + 'px';
-  popup.style.top = rect.top + 'px';
-
-  document.body.appendChild(popup);
-  ellipsisPopup = popup;
-}
-
-function hideEllipsisPopup() {
-  if (ellipsisPopup) { ellipsisPopup.remove(); ellipsisPopup = null; }
-}
-
-function acceptEllipsis() {
-  hideEllipsisPopup();
-  clearEllipsisWatch();
-  // Insert "..." as 3 separate dot-words after word at (currentIndex - 1)
-  const insertAt = currentIndex; // insert before currentIndex
-  const prevWord = words[insertAt - 1];
-  const dotLineIndex = prevWord ? prevWord.lineIndex + 0.5 : 0; // special line between
-
-  // Insert ... words into the words array
-  const dots = [
-    { text: '.', begin: null, end: null, lineIndex: Math.floor(dotLineIndex) + 1, isDot: true },
-    { text: '.', begin: null, end: null, lineIndex: Math.floor(dotLineIndex) + 1, isDot: true },
-    { text: '.', begin: null, end: null, lineIndex: Math.floor(dotLineIndex) + 1, isDot: true },
-  ];
-
-  // Shift lineIndex of all words from currentIndex onward
-  for (let i = currentIndex; i < words.length; i++) {
-    words[i].lineIndex += 2;
-  }
-  const newDotLineIndex = (prevWord ? prevWord.lineIndex : -1) + 1;
-  dots[0].lineIndex = newDotLineIndex;
-  dots[1].lineIndex = newDotLineIndex;
-  dots[2].lineIndex = newDotLineIndex;
-
-  words.splice(insertAt, 0, ...dots);
-  timings.splice(insertAt, 0, null, null, null);
-
-  setStatus('Đã thêm "..." — bấm ← để sync lại', 'ok');
-  renderWords();
-  updateStats();
-}
-
-function rejectEllipsis() {
-  hideEllipsisPopup();
-  clearEllipsisWatch();
 }
 
 // ─── WORD SPLITTING ──────────────────────────────────────────────────────────
@@ -1083,9 +991,15 @@ function loadLyrics() {
     // but all words on the same line share the same lineIndex
     const lineWords = trimmed.split(/\s+/).filter(w => w.length > 0);
     for (const word of lineWords) {
-      const subWords = splitWord(word);
-      for (const sw of subWords) {
-        words.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex, isBsPart: sw.isBsPart || false, bsIndex: sw.bsIndex !== undefined ? sw.bsIndex : -1, isHyphenPart: sw.isHyphenPart || false, hyphenIndex: sw.hyphenIndex !== undefined ? sw.hyphenIndex : -1 });
+      if (word === '...') {
+        for (let di = 0; di < 3; di++) {
+          words.push({ text: '.', ttmlText: '.', begin: null, end: null, lineIndex, isDot: true, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
+        }
+      } else {
+        const subWords = splitWord(word);
+        for (const sw of subWords) {
+          words.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex, isBsPart: sw.isBsPart || false, bsIndex: sw.bsIndex !== undefined ? sw.bsIndex : -1, isHyphenPart: sw.isHyphenPart || false, hyphenIndex: sw.hyphenIndex !== undefined ? sw.hyphenIndex : -1 });
+        }
       }
     }
     lineIndex++; // Each line = new <p>
@@ -1111,158 +1025,201 @@ function renderWords() {
   }
 
   canvas.innerHTML = '';
-  let prevLineIndex = null;
+
+  // Group words by lineIndex
+  const lineGroups = {};
   words.forEach((w, i) => {
-    // Insert line-break divider when lineIndex changes
-    if (prevLineIndex !== null && w.lineIndex !== prevLineIndex) {
+    if (!lineGroups[w.lineIndex]) lineGroups[w.lineIndex] = [];
+    lineGroups[w.lineIndex].push({ w, i });
+  });
+  const sortedLines = Object.keys(lineGroups).map(Number).sort((a, b) => a - b);
+
+  sortedLines.forEach((lineIdx, rowNum) => {
+    if (rowNum > 0) {
       const br = document.createElement('div');
       br.style.cssText = 'width:100%;height:2px;background:var(--border);margin:6px 0;flex-basis:100%;';
       canvas.appendChild(br);
     }
-    prevLineIndex = w.lineIndex;
 
-    const chip = document.createElement('div');
-    chip.className = 'word-chip';
-    chip.id = `word-${i}`;
-  if (w.isDot) {
-      chip.style.cssText += 'padding:4px 2px;font-size:30px;letter-spacing:0;';
-    }
-    chip.textContent = w.text;
+    // Row wrapper
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;width:100%;flex-wrap:wrap;gap:10px 8px;position:relative;';
 
-    if (i < currentIndex) {
-      chip.classList.add('done');
-      chip.title = 'Click to re-sync from here';
-      chip.style.cursor = 'pointer';
-      chip.addEventListener('click', () => reSyncFromWord(i));
-    }
-    else if (i === currentIndex) chip.classList.add('active');
-    else chip.classList.add('pending');
+    const entries = lineGroups[lineIdx];
+    // Time badge (thời gian từ đầu tiên của dòng)
+    const firstWord = entries[0].w;
+    const timeBadge = document.createElement('div');
+    timeBadge.id = `line-time-${lineIdx}`;
+    timeBadge.style.cssText = 'margin-left:auto;font-family:"Space Mono",monospace;font-size:10px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:3px 8px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;align-self:center;';
+    timeBadge.textContent = firstWord.begin !== null ? formatTime(firstWord.begin) : '––:––.–––';
 
-    // Double-click để edit chip text
-    chip.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      startEditChip(chip, i);
+    entries.forEach(({ w, i }) => {
+      const chip = document.createElement('div');
+      chip.className = 'word-chip';
+      chip.id = `word-${i}`;
+      if (w.isDot) {
+        chip.style.cssText += 'padding:4px 2px;font-size:30px;letter-spacing:0;';
+      }
+      chip.textContent = w.text;
+
+      const effectiveDoneLimit = reSyncTargetIndex !== null ? reSyncTargetIndex : currentIndex;
+      if (i === currentIndex && reSyncTargetIndex !== null) {
+        chip.classList.add('re-sync');
+        chip.title = 'Hold SPACE to re-sync this word';
+      } else if (words[i].begin !== null && i !== currentIndex) {
+        // Từ đã được sync (có begin) → luôn cho phép click re-sync, trừ khi đang re-sync
+        chip.classList.add('done');
+        chip.title = reSyncTargetIndex !== null ? 'Re-sync in progress...' : 'Click to re-sync from here';
+        chip.style.cursor = reSyncTargetIndex !== null ? 'default' : 'pointer';
+        if (reSyncTargetIndex === null) {
+          chip.addEventListener('click', () => reSyncFromWord(i));
+        }
+      } else if (i === currentIndex) {
+        chip.classList.add('pending');
+      } else {
+        chip.classList.add('pending');
+      }
+
+      chip.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        startEditChip(chip, i);
+      });
+
+      row.appendChild(chip);
     });
 
-    canvas.appendChild(chip);
+    row.appendChild(timeBadge);
+    canvas.appendChild(row);
   });
 
   // Scroll active into view
   const activeEl = document.getElementById(`word-${currentIndex}`);
   if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-  // Append "Kết thúc sync" chip at the end
-  if (words.length > 0) {
-    const br2 = document.createElement('div');
-    br2.style.cssText = 'width:100%;height:2px;background:var(--border);margin:6px 0;flex-basis:100%;';
-    canvas.appendChild(br2);
-    const endChip = document.createElement('div');
-    endChip.className = 'word-chip ' + (endSyncStamped ? 'done' : (currentIndex >= words.length ? 'active' : 'pending'));
-    endChip.id = 'end-sync-chip';
-    endChip.textContent = '⏹ End of Sync' + (endSyncStamped ? ' —' : (currentIndex >= words.length ? ' — You need to press Space to sync this line before exporting the TTML file.' : ''));
-    endChip.style.cssText = 'font-size:14px;letter-spacing:1.5px;border-style:dashed;' + (currentIndex >= words.length && !endSyncStamped ? 'color:#ffcc00;border-color:#ffcc00;background:rgba(255,204,0,0.08);' : 'opacity:0.5;');
-    canvas.appendChild(endChip);
-    if (currentIndex >= words.length && !endSyncStamped) {
-      endChip.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }
 }
 
 function updateChipState(index, state) {
   const el = document.getElementById(`word-${index}`);
   if (!el) return;
   el.className = `word-chip ${state}`;
+  if (state === 'done') {
+    el.title = 'Click to re-sync from here';
+    el.style.cursor = 'pointer';
+    const newEl = el.cloneNode(true);
+    el.parentNode.replaceChild(newEl, el);
+    newEl.addEventListener('click', () => reSyncFromWord(index));
+    newEl.addEventListener('dblclick', (e) => { e.stopPropagation(); startEditChip(newEl, index); });
+  }
 }
 
 // ─── STAMPING ────────────────────────────────────────────────────────────────
-function stampWord() {
+function stampWordStart() {
   if (words.length === 0) { setStatus('Load lyrics first', 'err'); return; }
   if (!audio) { setStatus('Load audio first', 'err'); return; }
   if (currentIndex >= words.length) {
-    if (!endSyncStamped && audio) {
-      const t = audio.currentTime;
-      // Set end time of last word to now if not set
-      if (words.length > 0 && timings[words.length - 1] && timings[words.length - 1].end === null) {
-        timings[words.length - 1].end = t;
-        words[words.length - 1].end = t;
-      }
-      endSyncStamped = true;
-      renderWords();
-      setStatus('Kết thúc sync ✓ — Xuất TTML!', 'ok');
-      document.getElementById('exportBtn').disabled = false;
-    } else if (endSyncStamped) {
-      setStatus('Đã kết thúc sync!', 'ok');
-    }
+    // End-of-sync: handled on keyup (stampWordEnd)
     return;
   }
 
   const t = audio.currentTime;
 
-  // Close previous word's end time
-  if (currentIndex > 0 && timings[currentIndex - 1]) {
-    timings[currentIndex - 1].end = t;
-    words[currentIndex - 1].end = t;
-
-    // Auto new <p> if gap > 3s between stamps, but only if not already on a new line
-    const prevBegin = words[currentIndex - 1].begin;
-    const alreadyNewLine = words[currentIndex].lineIndex > words[currentIndex - 1].lineIndex;
-    if (prevBegin !== null && (t - prevBegin) > 3 && !alreadyNewLine) {
-      currentLineIndex = Math.max(currentLineIndex, words[currentIndex - 1].lineIndex) + 1;
-      words[currentIndex].lineIndex = currentLineIndex;
-    }
-  }
-
-  // Stamp current word
+  // Stamp begin of current word
   timings[currentIndex] = { begin: t, end: null };
   words[currentIndex].begin = t;
 
-  updateChipState(currentIndex, 'done');
-  currentIndex++;
+  updateChipState(currentIndex, 'active');
+  const activeEl = document.getElementById(`word-${currentIndex}`);
+  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-  // Nếu đang ở chế độ re-sync chọn lọc: bỏ qua các từ đã có timing, dừng ở từ chưa có
-  if (reSyncTargetIndex !== null) {
-    // Tìm từ tiếp theo chưa có timing (để dừng lại đó hoặc tiếp tục nếu SPACE)
-    // Không xóa timing từ tiếp theo — chỉ set currentIndex nhảy qua nó nếu đã có timing
-    if (currentIndex < words.length && words[currentIndex].begin !== null) {
-      // Từ tiếp theo đã có timing → xóa nó để chờ người dùng SPACE stamp lại
-      words[currentIndex].begin = null;
-      words[currentIndex].end = null;
-      timings[currentIndex] = null;
-      if (currentIndex > 0 && timings[currentIndex - 1]) {
-        timings[currentIndex - 1].end = null;
-        words[currentIndex - 1].end = null;
-      }
-    } else {
-      // Từ tiếp theo chưa có timing → thoát chế độ re-sync chọn lọc
-      reSyncTargetIndex = null;
-    }
-  }
-
-  if (currentIndex < words.length) {
-    updateChipState(currentIndex, 'active');
-    const activeEl = document.getElementById(`word-${currentIndex}`);
-    if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    startEllipsisWatch(currentIndex); // start 5s watch for new word
-  } else {
-    reSyncTargetIndex = null;
-    clearEllipsisWatch();
-    setStatus('⏹ Bấm SPACE thêm 1 lần để kết thúc sync', 'ok');
-    renderWords();
+  // Cập nhật time badge nếu đây là từ đầu tiên của dòng (hoặc từ đầu tiên của dòng chưa có begin)
+  const stampedWord = words[currentIndex];
+  const lineFirstWordIdx = words.findIndex(w => w.lineIndex === stampedWord.lineIndex);
+  if (currentIndex === lineFirstWordIdx) {
+    const badge = document.getElementById(`line-time-${stampedWord.lineIndex}`);
+    if (badge) badge.textContent = formatTime(t);
   }
 
   document.getElementById('undoBtn').disabled = false;
   updateStats();
 }
 
+function stampWordEnd() {
+  if (words.length === 0) return;
+  if (!audio) return;
+
+  // End-of-sync zone: finalize last word's end
+  if (currentIndex >= words.length) {
+    if (!endSyncStamped) {
+      const t = audio.currentTime;
+      if (words.length > 0 && timings[words.length - 1] && timings[words.length - 1].end === null) {
+        timings[words.length - 1].end = t;
+        words[words.length - 1].end = t;
+      }
+      endSyncStamped = true;
+      renderWords();
+      setStatus('Sync complete ✓ — Export TTML!', 'ok');
+      document.getElementById('exportBtn').disabled = false;
+    } else {
+      setStatus('Sync already complete!', 'ok');
+    }
+    return;
+  }
+
+  if (!timings[currentIndex] || timings[currentIndex].begin === null) return;
+
+  const t = audio.currentTime;
+
+  // Set end of current word
+  timings[currentIndex].end = t;
+  words[currentIndex].end = t;
+
+  updateChipState(currentIndex, 'done');
+  currentIndex++;
+
+  // Re-sync selective mode: sau khi stamp xong từ được click, nhảy về vị trí cuối cùng đang dở
+  if (reSyncTargetIndex !== null) {
+    currentIndex = reSyncTargetIndex;
+    reSyncTargetIndex = null;
+    renderWords();
+    updateStats();
+    const jumpEl = document.getElementById(`word-${currentIndex}`);
+    if (jumpEl) jumpEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setStatus(`Re-sync done — resumed at word ${currentIndex + 1} ✓`, 'ok');
+    return;
+  }
+
+  if (currentIndex < words.length) {
+    // không tự highlight từ tiếp theo — chờ người dùng nhấn space
+  } else {
+    reSyncTargetIndex = null;
+    // Tự động hoàn thành sync khi từ cuối đã được stamp
+    endSyncStamped = true;
+    renderWords();
+    setStatus('Sync complete ✓ — Export TTML!', 'ok');
+    document.getElementById('exportBtn').disabled = false;
+  }
+
+  updateStats();
+}
+
 function undoLast() {
   if (currentIndex === 0) return;
-  clearEllipsisWatch();
   // If undoing into endSync zone
   if (currentIndex >= words.length && endSyncStamped) {
     endSyncStamped = false;
     document.getElementById('exportBtn').disabled = true;
-    renderWords();
-    setStatus('Undo kết thúc sync ✓', 'ok');
+    currentIndex = words.length - 1;
+    words[currentIndex].begin = null;
+    words[currentIndex].end = null;
+    timings[currentIndex] = null;
+    if (currentIndex > 0 && timings[currentIndex - 1]) {
+      timings[currentIndex - 1].end = null;
+      words[currentIndex - 1].end = null;
+    }
+    updateChipState(currentIndex, 'pending');
+    const activeEl = document.getElementById(`word-${currentIndex}`);
+    if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    updateStats();
+    setStatus('Undo ✓', 'ok');
     return;
   }
   currentIndex--;
@@ -1276,7 +1233,7 @@ function undoLast() {
     words[currentIndex - 1].end = null;
   }
 
-  updateChipState(currentIndex, 'active');
+  updateChipState(currentIndex, 'pending');
   if (currentIndex + 1 < words.length) {
     updateChipState(currentIndex + 1, 'pending');
   }
@@ -1294,7 +1251,6 @@ function resetSync() {
   currentIndex = 0;
   timings = [];
   endSyncStamped = false;
-  clearEllipsisWatch();
   words.forEach(w => { w.begin = null; w.end = null; });
   renderWords();
   updateStats();
@@ -1319,9 +1275,12 @@ function updateStats() {
 let reSyncTargetIndex = null; // index đang trong chế độ re-sync chọn lọc
 
 function reSyncFromWord(index) {
-  if (index >= currentIndex) return;
+  if (reSyncTargetIndex !== null) return; // Đang re-sync 1 từ rồi, không cho click thêm
+  if (words[index].begin === null) return; // Từ chưa sync thì không cho click
+  // Lưu đích nhảy về: currentIndex là vị trí đang sync dở hiện tại
+  const jumpTarget = currentIndex;
+  reSyncTargetIndex = jumpTarget;
   // Chỉ xóa timing của từ được click (và end của từ trước nó)
-  // Các từ sau vẫn giữ nguyên — sẽ bị overwrite dần khi người dùng SPACE
   words[index].begin = null;
   words[index].end = null;
   timings[index] = null;
@@ -1330,14 +1289,12 @@ function reSyncFromWord(index) {
     words[index - 1].end = null;
   }
   endSyncStamped = false;
-  reSyncTargetIndex = index; // đánh dấu đang ở chế độ re-sync chọn lọc
   currentIndex = index;
   document.getElementById('exportBtn').disabled = true;
   document.getElementById('undoBtn').disabled = index === 0;
-  clearEllipsisWatch();
   renderWords();
   updateStats();
-  setStatus(`Re-sync từ "${words[index].text}" — nhấn SPACE để stamp ✓`, 'ok');
+  setStatus(`Re-syncing "${words[index].text}" — hold SPACE to stamp, then jumps to last position ✓`, 'ok');
   const el = document.getElementById(`word-${index}`);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -1404,7 +1361,7 @@ function startEditChip(chip, index) {
         renderWords();
         updateStats();
         syncInputFromWords();
-        setStatus(`Tách "${newText.replace(/\\/g, '·')}" thành ${parts.length} từ ✓`, 'ok');
+        setStatus(`Split "${newText.replace(/\\/g, '·')}" into ${parts.length} words ✓`, 'ok');
         return;
       }
     }
@@ -1414,7 +1371,7 @@ function startEditChip(chip, index) {
     words[index].ttmlText = newText;
     chip.textContent = newText;
     syncInputFromWords();
-    setStatus('Đã cập nhật từ ✓', 'ok');
+    setStatus('Lyrics updated ✓', 'ok');
   }
 
   chip.addEventListener('keydown', function onKey(e) {
@@ -1493,7 +1450,7 @@ function loadBV() {
     for (const word of lineWords) {
       const subWords = splitWord(word);
       for (const sw of subWords) {
-        bvWords.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex });
+        bvWords.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex, isHyphenPart: sw.isHyphenPart || false, hyphenIndex: sw.hyphenIndex !== undefined ? sw.hyphenIndex : -1, isBsPart: sw.isBsPart || false, bsIndex: sw.bsIndex !== undefined ? sw.bsIndex : -1 });
       }
     }
     lineIndex++;
@@ -1517,47 +1474,73 @@ function bvRenderWords() {
     return;
   }
   canvas.innerHTML = '';
-  let prevLineIndex = null;
+
+  const lineGroups = {};
   bvWords.forEach((w, i) => {
-    if (prevLineIndex !== null && w.lineIndex !== prevLineIndex) {
+    if (!lineGroups[w.lineIndex]) lineGroups[w.lineIndex] = [];
+    lineGroups[w.lineIndex].push({ w, i });
+  });
+  const sortedLines = Object.keys(lineGroups).map(Number).sort((a, b) => a - b);
+
+  sortedLines.forEach((lineIdx, rowNum) => {
+    if (rowNum > 0) {
       const br = document.createElement('div');
       br.style.cssText = 'width:100%;height:2px;background:rgba(110,180,255,0.25);margin:6px 0;flex-basis:100%;';
       canvas.appendChild(br);
     }
-    prevLineIndex = w.lineIndex;
-    const chip = document.createElement('div');
-    chip.className = 'word-chip';
-    chip.id = `bv-word-${i}`;
-    chip.style.setProperty('--accent', '#6eb4ff');
-    chip.textContent = w.text;
-    if (i < bvCurrentIndex) chip.classList.add('done');
-    else if (i === bvCurrentIndex) { chip.classList.add('active'); chip.style.background='#6eb4ff'; chip.style.borderColor='#6eb4ff'; chip.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; }
-    else chip.classList.add('pending');
-    canvas.appendChild(chip);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;width:100%;flex-wrap:wrap;gap:10px 8px;position:relative;';
+
+    const entries = lineGroups[lineIdx];
+    const firstWord = entries[0].w;
+    const timeBadge = document.createElement('div');
+    timeBadge.id = `bv-line-time-${lineIdx}`;
+    timeBadge.style.cssText = 'margin-left:auto;font-family:"Space Mono",monospace;font-size:10px;color:#6eb4ff80;background:var(--surface);border:1px solid rgba(110,180,255,0.25);padding:3px 8px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;align-self:center;';
+    timeBadge.textContent = firstWord.begin !== null ? formatTime(firstWord.begin) : '––:––.–––';
+
+    entries.forEach(({ w, i }) => {
+      const chip = document.createElement('div');
+      chip.className = 'word-chip';
+      chip.id = `bv-word-${i}`;
+      chip.style.setProperty('--accent', '#6eb4ff');
+      chip.textContent = w.text;
+      if (i < bvCurrentIndex) chip.classList.add('done');
+      else chip.classList.add('pending');
+      row.appendChild(chip);
+    });
+
+    row.appendChild(timeBadge);
+    canvas.appendChild(row);
   });
 
   const activeEl = document.getElementById(`bv-word-${bvCurrentIndex}`);
   if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-  if (bvWords.length > 0) {
-    const br2 = document.createElement('div');
-    br2.style.cssText = 'width:100%;height:2px;background:rgba(110,180,255,0.25);margin:6px 0;flex-basis:100%;';
-    canvas.appendChild(br2);
-    const endChip = document.createElement('div');
-    endChip.className = 'word-chip ' + (bvEndSyncStamped ? 'done' : (bvCurrentIndex >= bvWords.length ? 'active' : 'pending'));
-    endChip.id = 'bv-end-sync-chip';
-    endChip.textContent = '⏹ End of BV Sync';
-    endChip.style.cssText = 'font-size:16px;letter-spacing:2px;opacity:0.7;border-style:dashed;';
-    canvas.appendChild(endChip);
-    if (bvCurrentIndex >= bvWords.length && !bvEndSyncStamped) {
-      endChip.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }
 }
 
-function bvStampWord() {
+function bvStampWordStart() {
   if (bvWords.length === 0) { setBVStatus('Load backing vocal first', 'err'); return; }
   if (!audio) { setBVStatus('Load audio first', 'err'); return; }
+  if (bvCurrentIndex >= bvWords.length) {
+    // End handled on keyup
+    return;
+  }
+
+  const t = audio.currentTime;
+  bvTimings[bvCurrentIndex] = { begin: t, end: null };
+  bvWords[bvCurrentIndex].begin = t;
+
+  const el = document.getElementById(`bv-word-${bvCurrentIndex}`);
+  if (el) { el.classList.remove('pending'); el.classList.add('active'); el.style.background='#6eb4ff'; el.style.borderColor='#6eb4ff'; el.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+  document.getElementById('undoBtn').disabled = false;
+  bvUpdateStats();
+}
+
+function bvStampWordEnd() {
+  if (bvWords.length === 0) return;
+  if (!audio) return;
+
   if (bvCurrentIndex >= bvWords.length) {
     if (!bvEndSyncStamped) {
       const t = audio.currentTime;
@@ -1567,49 +1550,48 @@ function bvStampWord() {
       }
       bvEndSyncStamped = true;
       bvRenderWords();
-      setBVStatus('Kết thúc BV sync ✓ — Xuất TTML!', 'ok');
+      setBVStatus('BV sync complete ✓ — Export TTML!', 'ok');
       if (endSyncStamped || words.length === 0) {
         document.getElementById('exportBtn').disabled = false;
       }
     } else {
-      setBVStatus('Đã kết thúc BV sync!', 'ok');
+      setBVStatus('Sync complete ✓', 'ok');
     }
     return;
   }
 
-  const t = audio.currentTime;
-  if (bvCurrentIndex > 0 && bvTimings[bvCurrentIndex - 1]) {
-    bvTimings[bvCurrentIndex - 1].end = t;
-    bvWords[bvCurrentIndex - 1].end = t;
-  }
+  if (!bvTimings[bvCurrentIndex] || bvTimings[bvCurrentIndex].begin === null) return;
 
-  bvTimings[bvCurrentIndex] = { begin: t, end: null };
-  bvWords[bvCurrentIndex].begin = t;
+  const t = audio.currentTime;
+  bvTimings[bvCurrentIndex].end = t;
+  bvWords[bvCurrentIndex].end = t;
 
   const el = document.getElementById(`bv-word-${bvCurrentIndex}`);
   if (el) { el.classList.remove('active','pending'); el.classList.add('done'); el.style.background=''; el.style.borderColor=''; el.style.boxShadow=''; }
   bvCurrentIndex++;
 
   if (bvCurrentIndex < bvWords.length) {
-    const nextEl = document.getElementById(`bv-word-${bvCurrentIndex}`);
-    if (nextEl) { nextEl.classList.remove('pending'); nextEl.classList.add('active'); nextEl.style.background='#6eb4ff'; nextEl.style.borderColor='#6eb4ff'; nextEl.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; nextEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    // chờ người dùng nhấn space cho từ tiếp theo
   } else {
-    setBVStatus('⏹ Bấm SPACE thêm 1 lần để kết thúc BV sync', 'ok');
+    // Tự động hoàn thành BV sync khi từ cuối đã được stamp
+    bvEndSyncStamped = true;
+    bvRenderWords();
+    setBVStatus('BV sync complete ✓ — Export TTML!', 'ok');
+    if (endSyncStamped || words.length === 0) {
+      document.getElementById('exportBtn').disabled = false;
+    }
   }
 
-  document.getElementById('undoBtn').disabled = false;
   bvUpdateStats();
 }
 
 function bvUndoLast() {
-  if (bvCurrentIndex === 0) return;
-  if (bvCurrentIndex >= bvWords.length && bvEndSyncStamped) {
+  if (bvCurrentIndex === 0 && !bvEndSyncStamped) return;
+  if (bvEndSyncStamped) {
     bvEndSyncStamped = false;
     document.getElementById('exportBtn').disabled = true;
-    bvRenderWords();
-    setBVStatus('Undo BV kết thúc sync ✓', 'ok');
-    return;
   }
+  if (bvCurrentIndex === 0) { bvRenderWords(); bvUpdateStats(); setBVStatus('Undo BV ✓', 'ok'); return; }
   bvCurrentIndex--;
   bvWords[bvCurrentIndex].begin = null;
   bvWords[bvCurrentIndex].end = null;
@@ -1691,11 +1673,19 @@ function exportTTML() {
       });
       // Fallback: if no containing line found, use closest begin
       if (bestKey === null) {
+        // Ưu tiên dòng main có begin <= bvBegin (dòng ngay trước BV)
+        let bestPrevKey = null, bestPrevDist = Infinity;
+        let bestAnyKey = null, bestAnyDist = Infinity;
         Object.entries(lineMap).forEach(([key, mLine]) => {
           const mBegin = mLine[0].begin;
+          if (mBegin <= bvBegin) {
+            const dist = bvBegin - mBegin;
+            if (dist < bestPrevDist) { bestPrevDist = dist; bestPrevKey = key; }
+          }
           const dist = Math.abs(bvBegin - mBegin);
-          if (dist < bestDist) { bestDist = dist; bestKey = key; }
+          if (dist < bestAnyDist) { bestAnyDist = dist; bestAnyKey = key; }
         });
+        bestKey = bestPrevKey !== null ? bestPrevKey : bestAnyKey;
       }
       if (bestKey !== null) {
         if (!bvLineMap[bestKey]) bvLineMap[bestKey] = [];
@@ -1705,15 +1695,22 @@ function exportTTML() {
   }
 
   let pIndex = 1;
-  const pTags = Object.entries(lineMap).map(([key, lineWords]) => {
+  const lineEntries = Object.entries(lineMap);
+  const pTags = lineEntries.map(([key, lineWords], entryIdx) => {
     const pb = toTTMLTime(lineWords[0].begin);
-    const pe = toTTMLTime(lineWords[lineWords.length-1].end || lineWords[lineWords.length-1].begin + 0.5);
+    const nextEntry = lineEntries[entryIdx + 1];
+    const rawEnd = lineWords[lineWords.length-1].end || lineWords[lineWords.length-1].begin + 0.5;
+    const pe = toTTMLTime(nextEntry ? nextEntry[1][0].begin : rawEnd);
     const allDots = lineWords.every(w => w.isDot);
     let mainSpans;
     if (allDots) {
-      const tStart = lineWords[0].begin;
-      const tEnd = lineWords[lineWords.length - 1].end || (tStart + (lineWords.length * 1));
-      const step = (tEnd - tStart) / lineWords.length;
+      // Tính thời gian từ prev word (entry trước) và next word (entry sau)
+      const prevEntry = lineEntries[entryIdx - 1];
+      const nextEntry2 = lineEntries[entryIdx + 1];
+      const tStart = prevEntry ? (prevEntry[1][prevEntry[1].length - 1].end || prevEntry[1][prevEntry[1].length - 1].begin + 0.5) : lineWords[0].begin;
+      const tEnd = nextEntry2 ? nextEntry2[1][0].begin : (lineWords[lineWords.length - 1].end || tStart + lineWords.length);
+      const count = lineWords.length;
+      const step = (tEnd - tStart) / count;
       mainSpans = lineWords.map((w, di) => {
         const b = toTTMLTime(tStart + di * step);
         const e = toTTMLTime(tStart + (di + 1) * step);
@@ -1722,28 +1719,56 @@ function exportTTML() {
     } else {
       mainSpans = lineWords.map((w, wi) => {
         const b = toTTMLTime(w.begin);
-        const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.5);
+        const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
         const span = `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
         const prev = lineWords[wi - 1];
         const sep = (wi > 0 && ((w.isBsPart && w.bsIndex > 0) || (w.isHyphenPart && w.hyphenIndex > 0))) ? '' : (wi > 0 ? ' ' : '');
         return sep + span;
       }).join('');
     }
-    // Attach BV lines as x-bg spans inside this <p>
-    let bvSpans = '';
-    if (hasBV && bvLineMap[key]) {
-      bvSpans = bvLineMap[key].map(bvLine => {
-        const bb = toTTMLTime(bvLine[0].begin);
-        const be = toTTMLTime(bvLine[bvLine.length-1].end || bvLine[bvLine.length-1].begin + 0.5);
-        const innerSpans = bvLine.map(w => {
-          const b = toTTMLTime(w.begin);
-          const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.5);
-          return `<span begin="${b}" end="${e}">${escapeXML(w.text)}</span>`;
-        }).join(' ');
-        return `<span ttm:role="x-bg" begin="${bb}" end="${be}">${innerSpans}</span>`;
-      }).join('');
-    }
-    return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSpans}</p>`;
+    // Attach BV lines as inline x-bg spans inside this <p>
+let bvSpans = '';
+
+if (hasBV && bvLineMap[key]) {
+  bvSpans = bvLineMap[key].map(bvLine => {
+
+    const bb = toTTMLTime(bvLine[0].begin);
+
+    const lastBV = bvLine[bvLine.length - 1];
+    const be = toTTMLTime(
+      lastBV.end !== null
+        ? lastBV.end
+        : lastBV.begin + 0.12
+    );
+
+    const innerSpans = bvLine.map((w, wi) => {
+
+      const b = toTTMLTime(w.begin);
+
+      const e = toTTMLTime(
+        w.end !== null
+          ? w.end
+          : w.begin + 0.12
+      );
+
+      const sep =
+        (wi > 0 && (
+          (w.isHyphenPart && w.hyphenIndex > 0) ||
+          (w.isBsPart && w.bsIndex > 0)
+        ))
+          ? ''
+          : (wi > 0 ? ' ' : '');
+
+      return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+
+    }).join('');
+
+    return `<span ttm:role="x-bg">${innerSpans}</span>`;
+
+  }).join('');
+}
+
+return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSpans}</p>`;
   }).join('\n');
 
   const agentMeta = `<ttm:agent type="person" xml:id="v1"/>`;
@@ -1756,13 +1781,12 @@ function exportTTML() {
 }
 
 function toTTMLTime(sec) {
-  if (sec === null || sec === undefined) sec = 0;
+  if (sec === null || sec === undefined || isNaN(sec) || !isFinite(sec)) sec = 0;
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const rawS = sec % 60;
   const s = rawS.toFixed(3).padStart(6, '0');
-  if (h > 0) return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${s}`;
-  return `${String(m).padStart(2,'0')}:${s}`;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${s}`;
 }
 
 function escapeXML(str) {
@@ -1802,6 +1826,8 @@ function setStatus(msg, type) {
 }
 
 // ─── KEYBOARD ────────────────────────────────────────────────────────────────
+let spaceHeld = false;
+
 document.addEventListener('keydown', (e) => {
   // Don't intercept when typing in textarea or editing a chip
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
@@ -1809,7 +1835,10 @@ document.addEventListener('keydown', (e) => {
 
   if (e.code === 'Space') {
     e.preventDefault();
-    if (activeTab === 'bv') bvStampWord(); else stampWord();
+    if (!spaceHeld) {
+      spaceHeld = true;
+      if (activeTab === 'bv') bvStampWordStart(); else stampWordStart();
+    }
   } else if (e.code === 'KeyZ') {
     e.preventDefault();
     if (activeTab === 'bv') bvUndoLast(); else undoLast();
@@ -1822,6 +1851,18 @@ document.addEventListener('keydown', (e) => {
   } else if (e.code === 'ArrowRight') {
     e.preventDefault();
     if (audio) audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 2);
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.target.getAttribute && e.target.getAttribute('contenteditable') === 'true') return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (spaceHeld) {
+      spaceHeld = false;
+      if (activeTab === 'bv') bvStampWordEnd(); else stampWordEnd();
+    }
   }
 });
 
