@@ -796,7 +796,7 @@
           <option value="1" selected>1×</option>
           <option value="1.25">1.25×</option>
         </select>
-        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;white-space:nowrap;">HOLD SPACE/ARROW DOWN to sync</span>
+        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;white-space:nowrap;">HOLD SPACE / ↓ to sync</span>
       </div>
     </div>
 
@@ -857,12 +857,12 @@
             <div class="empty-state">
               <div class="big-icon">🎤</div>
               <h3>Ready to Sync</h3>
-              <p>Load audio and lyrics, then hold SPACE/ARROW DOWN while the music plays to stamp each word's timing.</p>
+              <p>Load audio and lyrics, then hold SPACE / ↓ while the music plays to stamp each word's timing.</p>
             </div>
           </div>
         </div>
         <div class="instruction-bar">
-          <div class="key-hint"><div class="key">HOLD SPACE/ARROW DOWN</div><span>Sync word (begin→end)</span></div>
+          <div class="key-hint"><div class="key">HOLD SPACE / ↓</div><span>Sync word (begin→end)</span></div>
           <div class="key-hint"><div class="key">Z / ↑</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
@@ -886,7 +886,7 @@
           </div>
         </div>
         <div class="instruction-bar" style="border-top-color:color-mix(in srgb, var(--rv-color) 20%, transparent);">
-          <div class="key-hint"><div class="key">HOLD SPACE/ARROW DOWN</div><span>Sync word (begin→end)</span></div>
+          <div class="key-hint"><div class="key">HOLD SPACE / ↓</div><span>Sync word (begin→end)</span></div>
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
@@ -910,7 +910,7 @@
           </div>
         </div>
         <div class="instruction-bar" style="border-top-color:color-mix(in srgb, var(--accent) 20%, transparent);">
-          <div class="key-hint"><div class="key">HOLD SPACE/ARROW DOWN</div><span>Sync word (begin→end)</span></div>
+          <div class="key-hint"><div class="key">HOLD SPACE / ↓</div><span>Sync word (begin→end)</span></div>
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
@@ -1624,7 +1624,7 @@ function renderWords() {
       const effectiveDoneLimit = reSyncTargetIndex !== null ? reSyncTargetIndex : currentIndex;
       if (i === currentIndex && reSyncTargetIndex !== null) {
         chip.classList.add('re-sync');
-        chip.title = 'Hold SPACE/ARROW DOWN to re-sync this word';
+        chip.title = 'Hold SPACE / ↓ to re-sync this word';
       } else if (words[i].begin !== null && i !== currentIndex) {
         // Từ đã được sync (có begin) → luôn cho phép click re-sync, trừ khi đang re-sync
         chip.classList.add('done');
@@ -1947,7 +1947,7 @@ function reSyncFromWord(index) {
   document.getElementById('undoBtn').disabled = index === 0;
   renderWords();
   updateStats();
-  setStatus(`Re-syncing "${words[index].text}" — hold SPACE/ARROW DOWN to stamp, then jumps to last position ✓`, 'ok');
+  setStatus(`Re-syncing "${words[index].text}" — hold SPACE / ↓ to stamp, then jumps to last position ✓`, 'ok');
   const el = document.getElementById(`word-${index}`);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -2219,7 +2219,7 @@ function bvRenderWords() {
 
       if (i === bvCurrentIndex && bvReSyncTargetIndex !== null) {
         chip.classList.add('re-sync');
-        chip.title = 'Hold SPACE/ARROW DOWN to re-sync this word';
+        chip.title = 'Hold SPACE / ↓ to re-sync this word';
       } else if (w.begin !== null && i !== bvCurrentIndex) {
         chip.classList.add('done');
         chip.title = bvReSyncTargetIndex !== null ? 'Re-sync in progress...' : 'Click to re-sync from here';
@@ -2373,7 +2373,7 @@ function bvReSyncFromWord(index) {
   document.getElementById('undoBtn').disabled = index === 0;
   bvRenderWords();
   bvUpdateStats();
-  setBVStatus(`Re-syncing "${bvWords[index].text}" — hold SPACE/ARROW DOWN to stamp ✓`, 'ok');
+  setBVStatus(`Re-syncing "${bvWords[index].text}" — hold SPACE / ↓ to stamp ✓`, 'ok');
   const el = document.getElementById(`bv-word-${index}`);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -2517,7 +2517,7 @@ function rvRenderWords() {
 
       if (i === rvCurrentIndex && rvReSyncTargetIndex !== null) {
         chip.classList.add('re-sync');
-        chip.title = 'Hold SPACE/ARROW DOWN to re-sync this word';
+        chip.title = 'Hold SPACE / ↓ to re-sync this word';
       } else if (w.begin !== null && i !== rvCurrentIndex) {
         chip.classList.add('done');
         chip.title = rvReSyncTargetIndex !== null ? 'Re-sync in progress...' : 'Click to re-sync from here';
@@ -2669,7 +2669,7 @@ function rvReSyncFromWord(index) {
   document.getElementById('undoBtn').disabled = index === 0;
   rvRenderWords();
   rvUpdateStats();
-  setRVStatus(`Re-syncing "${rvWords[index].text}" — hold SPACE/ARROW DOWN to stamp ✓`, 'ok');
+  setRVStatus(`Re-syncing "${rvWords[index].text}" — hold SPACE / ↓ to stamp ✓`, 'ok');
   const el = document.getElementById(`rv-word-${index}`);
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
