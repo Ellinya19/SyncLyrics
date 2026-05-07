@@ -839,6 +839,8 @@
       gap: 12px;
       max-height: 45vh;
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
 
     .upload-zone { padding: 16px; }
@@ -918,8 +920,8 @@
     .mobile-sync-bar .m-stamp-btn.holding { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
     /* push content above mobile bar */
-    .right-panels { padding-bottom: 64px; }
-    .instruction-bar { padding-bottom: 70px; }
+    .right-panels { padding-bottom: 0; }
+    .instruction-bar { padding-bottom: 16px; }
   }
 </style>
 </head>
@@ -1049,7 +1051,7 @@
       <div class="stats-bar" id="bvStatsBar" style="margin-top:10px;"></div>
     </div>
 
-    <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;">
+    <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;order:999;">
       <div class="section-label" style="color:#ff6eb4;">Credits</div>
       <div style="background:var(--surface);border:1px solid rgba(255,110,180,0.3);padding:14px;display:flex;flex-direction:column;gap:6px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ff6eb4;line-height:1;">By Ellinya 🌸</div>
@@ -1173,7 +1175,7 @@
 </div>
 
 <!-- MOBILE SYNC BAR -->
-<div class="mobile-sync-bar mobile-only">
+<div class="mobile-sync-bar mobile-only" style="display:none!important;">
   <button class="m-undo-btn" id="mobileUndoBtn">↑</button>
   <button class="m-stamp-btn" id="mobileStampBtn">↓</button>
 </div>
@@ -3562,6 +3564,31 @@ function closeThemeDropdown() {
     el.style.top = y + 'px';
   });
   document.addEventListener('mouseup', () => { dragging = false; handle.style.cursor = 'grab'; });
+
+  // Touch drag for playback section
+  handle.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    dragging = true;
+    const rect = el.getBoundingClientRect();
+    ox = t.clientX - rect.left;
+    oy = t.clientY - rect.top;
+    el.style.right = 'auto';
+    el.style.bottom = 'auto';
+    el.style.left = rect.left + 'px';
+    el.style.top = rect.top + 'px';
+    e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    let x = t.clientX - ox;
+    let y = t.clientY - oy;
+    x = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, x));
+    y = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, y));
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+  }, { passive: true });
+  document.addEventListener('touchend', () => { dragging = false; });
 })();
 
 document.addEventListener('click', (e) => {
