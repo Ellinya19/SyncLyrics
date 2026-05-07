@@ -832,6 +832,8 @@
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+          <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
+          <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
           <div class="status-msg" id="rvStatusMsg" style="color:var(--rv-color);"></div>
         </div>
       </div>
@@ -854,6 +856,8 @@
           <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
           <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
           <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+          <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
+          <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
           <div class="status-msg" id="bvStatusMsg" style="color:var(--accent);"></div>
         </div>
       </div>
@@ -895,6 +899,7 @@ let bvTimings = [];
 let bvCurrentIndex = 0;
 let bvCurrentLineIndex = 0;
 let bvEndSyncStamped = false;
+let bvReSyncTargetIndex = null;
 
 // ─── ADDITIONAL LYRICS STATE ───────────────────────────────────────────────────────
 let rvWords = [];
@@ -1552,8 +1557,24 @@ function bvRenderWords() {
       chip.id = `bv-word-${i}`;
       chip.style.setProperty('--accent', '#6eb4ff');
       chip.textContent = w.text;
-      if (i < bvCurrentIndex) chip.classList.add('done');
-      else chip.classList.add('pending');
+
+      if (i === bvCurrentIndex && bvReSyncTargetIndex !== null) {
+        chip.classList.add('re-sync');
+        chip.title = 'Hold SPACE/ARROW DOWN to re-sync this word';
+      } else if (w.begin !== null && i !== bvCurrentIndex) {
+        chip.classList.add('done');
+        chip.title = bvReSyncTargetIndex !== null ? 'Re-sync in progress...' : 'Click to re-sync from here';
+        chip.style.cursor = bvReSyncTargetIndex !== null ? 'default' : 'pointer';
+        if (bvReSyncTargetIndex === null) {
+          chip.addEventListener('click', () => bvReSyncFromWord(i));
+        }
+      } else if (i === bvCurrentIndex) {
+        chip.classList.add('pending');
+      } else {
+        chip.classList.add('pending');
+      }
+
+      chip.addEventListener('dblclick', (e) => { e.stopPropagation(); bvStartEditChip(chip, i); });
       row.appendChild(chip);
     });
 
@@ -1617,10 +1638,20 @@ function bvStampWordEnd() {
   if (el) { el.classList.remove('active','pending'); el.classList.add('done'); el.style.background=''; el.style.borderColor=''; el.style.boxShadow=''; }
   bvCurrentIndex++;
 
+  if (bvReSyncTargetIndex !== null) {
+    bvCurrentIndex = bvReSyncTargetIndex;
+    bvReSyncTargetIndex = null;
+    bvRenderWords();
+    bvUpdateStats();
+    const jumpEl = document.getElementById(`bv-word-${bvCurrentIndex}`);
+    if (jumpEl) jumpEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setBVStatus(`Re-sync done — resumed at word ${bvCurrentIndex + 1} ✓`, 'ok');
+    return;
+  }
+
   if (bvCurrentIndex < bvWords.length) {
     // chờ người dùng nhấn space cho từ tiếp theo
   } else {
-    // Tự động hoàn thành BV sync khi từ cuối đã được stamp
     bvEndSyncStamped = true;
     bvRenderWords();
     setBVStatus('BV sync complete ✓ — Export TTML!', 'ok');
@@ -1670,6 +1701,69 @@ function setBVStatus(msg, type) {
   el.textContent = msg;
   el.className = `status-msg ${type}`;
   setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+}
+
+function bvReSyncFromWord(index) {
+  if (bvReSyncTargetIndex !== null) return;
+  if (bvWords[index].begin === null) return;
+  const jumpTarget = bvCurrentIndex;
+  bvReSyncTargetIndex = jumpTarget;
+  bvWords[index].begin = null;
+  bvWords[index].end = null;
+  bvTimings[index] = null;
+  if (index > 0 && bvTimings[index - 1]) {
+    bvTimings[index - 1].end = null;
+    bvWords[index - 1].end = null;
+  }
+  bvEndSyncStamped = false;
+  bvCurrentIndex = index;
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('undoBtn').disabled = index === 0;
+  bvRenderWords();
+  bvUpdateStats();
+  setBVStatus(`Re-syncing "${bvWords[index].text}" — hold SPACE/ARROW DOWN to stamp ✓`, 'ok');
+  const el = document.getElementById(`bv-word-${index}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function bvStartEditChip(chip, index) {
+  if (chip.getAttribute('data-editing') === 'true') return;
+  chip.setAttribute('data-editing', 'true');
+  chip.classList.add('editing');
+  chip.contentEditable = 'true';
+  chip.focus();
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(chip);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function finishEdit() {
+    chip.contentEditable = 'false';
+    chip.removeAttribute('data-editing');
+    chip.classList.remove('editing');
+    const newText = chip.textContent.trim();
+    if (newText === '') {
+      bvWords.splice(index, 1);
+      bvTimings.splice(index, 1);
+      if (bvCurrentIndex > index) bvCurrentIndex--;
+      bvRenderWords();
+      bvUpdateStats();
+      return;
+    }
+    bvWords[index].text = newText;
+    bvWords[index].ttmlText = newText;
+    chip.textContent = newText;
+    setBVStatus('BV lyrics updated ✓', 'ok');
+  }
+
+  chip.addEventListener('keydown', function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); chip.removeEventListener('keydown', onKey); chip.removeEventListener('blur', onBlur); finishEdit(); }
+    else if (e.key === 'Escape') { chip.removeEventListener('keydown', onKey); chip.removeEventListener('blur', onBlur); chip.textContent = bvWords[index].text; chip.contentEditable = 'false'; chip.removeAttribute('data-editing'); chip.classList.remove('editing'); }
+  });
+  function onBlur() { chip.removeEventListener('keydown', () => {}); chip.removeEventListener('blur', onBlur); finishEdit(); }
+  chip.addEventListener('blur', onBlur);
 }
 
 // ─── ADDITIONAL LYRICS FUNCTIONS ───────────────────────────────────────────────────
@@ -1743,8 +1837,24 @@ function rvRenderWords() {
       chip.id = `rv-word-${i}`;
       chip.style.setProperty('--accent', '#6eb4ff');
       chip.textContent = w.text;
-      if (i < rvCurrentIndex) chip.classList.add('done');
-      else chip.classList.add('pending');
+
+      if (i === rvCurrentIndex && rvReSyncTargetIndex !== null) {
+        chip.classList.add('re-sync');
+        chip.title = 'Hold SPACE/ARROW DOWN to re-sync this word';
+      } else if (w.begin !== null && i !== rvCurrentIndex) {
+        chip.classList.add('done');
+        chip.title = rvReSyncTargetIndex !== null ? 'Re-sync in progress...' : 'Click to re-sync from here';
+        chip.style.cursor = rvReSyncTargetIndex !== null ? 'default' : 'pointer';
+        if (rvReSyncTargetIndex === null) {
+          chip.addEventListener('click', () => rvReSyncFromWord(i));
+        }
+      } else if (i === rvCurrentIndex) {
+        chip.classList.add('pending');
+      } else {
+        chip.classList.add('pending');
+      }
+
+      chip.addEventListener('dblclick', (e) => { e.stopPropagation(); rvStartEditChip(chip, i); });
       row.appendChild(chip);
     });
 
@@ -1808,6 +1918,17 @@ function rvStampWordEnd() {
   if (el) { el.classList.remove('active','pending'); el.classList.add('done'); el.style.background=''; el.style.borderColor=''; el.style.boxShadow=''; }
   rvCurrentIndex++;
 
+  if (rvReSyncTargetIndex !== null) {
+    rvCurrentIndex = rvReSyncTargetIndex;
+    rvReSyncTargetIndex = null;
+    rvRenderWords();
+    rvUpdateStats();
+    const jumpEl = document.getElementById(`rv-word-${rvCurrentIndex}`);
+    if (jumpEl) jumpEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setRVStatus(`Re-sync done — resumed at word ${rvCurrentIndex + 1} ✓`, 'ok');
+    return;
+  }
+
   if (rvCurrentIndex >= rvWords.length) {
     rvEndSyncStamped = true;
     rvRenderWords();
@@ -1860,6 +1981,69 @@ function setRVStatus(msg, type) {
   setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
 }
 
+function rvReSyncFromWord(index) {
+  if (rvReSyncTargetIndex !== null) return;
+  if (rvWords[index].begin === null) return;
+  const jumpTarget = rvCurrentIndex;
+  rvReSyncTargetIndex = jumpTarget;
+  rvWords[index].begin = null;
+  rvWords[index].end = null;
+  rvTimings[index] = null;
+  if (index > 0 && rvTimings[index - 1]) {
+    rvTimings[index - 1].end = null;
+    rvWords[index - 1].end = null;
+  }
+  rvEndSyncStamped = false;
+  rvCurrentIndex = index;
+  document.getElementById('exportBtn').disabled = true;
+  document.getElementById('undoBtn').disabled = index === 0;
+  rvRenderWords();
+  rvUpdateStats();
+  setRVStatus(`Re-syncing "${rvWords[index].text}" — hold SPACE/ARROW DOWN to stamp ✓`, 'ok');
+  const el = document.getElementById(`rv-word-${index}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function rvStartEditChip(chip, index) {
+  if (chip.getAttribute('data-editing') === 'true') return;
+  chip.setAttribute('data-editing', 'true');
+  chip.classList.add('editing');
+  chip.contentEditable = 'true';
+  chip.focus();
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(chip);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function finishEdit() {
+    chip.contentEditable = 'false';
+    chip.removeAttribute('data-editing');
+    chip.classList.remove('editing');
+    const newText = chip.textContent.trim();
+    if (newText === '') {
+      rvWords.splice(index, 1);
+      rvTimings.splice(index, 1);
+      if (rvCurrentIndex > index) rvCurrentIndex--;
+      rvRenderWords();
+      rvUpdateStats();
+      return;
+    }
+    rvWords[index].text = newText;
+    rvWords[index].ttmlText = newText;
+    chip.textContent = newText;
+    setRVStatus('RV lyrics updated ✓', 'ok');
+  }
+
+  chip.addEventListener('keydown', function onKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); chip.removeEventListener('keydown', onKey); chip.removeEventListener('blur', onBlur); finishEdit(); }
+    else if (e.key === 'Escape') { chip.removeEventListener('keydown', onKey); chip.removeEventListener('blur', onBlur); chip.textContent = rvWords[index].text; chip.contentEditable = 'false'; chip.removeAttribute('data-editing'); chip.classList.remove('editing'); }
+  });
+  function onBlur() { chip.removeEventListener('keydown', () => {}); chip.removeEventListener('blur', onBlur); finishEdit(); }
+  chip.addEventListener('blur', onBlur);
+}
+
 // ─── TTML EXPORT ─────────────────────────────────────────────────────────────
 function exportTTML() {
   const stamped = words.filter(w => w.begin !== null);
@@ -1886,6 +2070,7 @@ function exportTTML() {
   // Build main lyric <p> tags, with BV embedded as x-bg spans inside matching <p>
   // Match BV lines to main lines by overlapping time
   const bvLineMap = {};
+  const bvLineMapRV_prebuilt = {};
   if (hasBV) {
     const bvLineMapRaw = {};
     bvStamped.forEach(w => {
@@ -1893,40 +2078,67 @@ function exportTTML() {
       if (!bvLineMapRaw[li]) bvLineMapRaw[li] = [];
       bvLineMapRaw[li].push(w);
     });
-    // For each BV line, find which main line it belongs to
-    // Strategy: find the main line whose begin is closest to BV begin (but not after BV end)
+
+    // Pre-build all candidate lines: v1 (main) and v2 (RV)
+    const v1Candidates = Object.entries(lineMap).map(([key, mLine]) => ({
+      key, agent: 'v1',
+      begin: mLine[0].begin,
+      end: mLine[mLine.length-1].end || mLine[mLine.length-1].begin + 0.5
+    }));
+    const v2Candidates = hasRV ? (() => {
+      const tmp = {};
+      rvStamped.forEach(w => {
+        const li = w.lineIndex !== undefined ? w.lineIndex : 0;
+        if (!tmp[li]) tmp[li] = [];
+        tmp[li].push(w);
+      });
+      return Object.entries(tmp).map(([key, lw]) => ({
+        key, agent: 'v2',
+        begin: lw[0].begin,
+        end: lw[lw.length-1].end || lw[lw.length-1].begin + 0.5
+      }));
+    })() : [];
+    const allCandidates = [...v1Candidates, ...v2Candidates];
+
     Object.values(bvLineMapRaw).forEach(bvLine => {
       const bvBegin = bvLine[0].begin;
-      const bvEnd = bvLine[bvLine.length-1].end || bvLine[bvLine.length-1].begin + 0.5;
-      let bestKey = null, bestDist = Infinity;
-      // First try: find a main line whose time range contains bvBegin
-      Object.entries(lineMap).forEach(([key, mLine]) => {
-        const mBegin = mLine[0].begin;
-        const mEnd = mLine[mLine.length-1].end || mLine[mLine.length-1].begin + 0.5;
-        if (bvBegin >= mBegin && bvBegin < mEnd) {
-          const dist = bvBegin - mBegin;
-          if (dist < bestDist) { bestDist = dist; bestKey = key; }
+
+      // Find the best owner: prefer line whose range contains bvBegin, else closest begin <= bvBegin, else closest any
+      let bestOwner = null, bestDist = Infinity;
+      // Pass 1: containment
+      for (const c of allCandidates) {
+        if (bvBegin >= c.begin && bvBegin < c.end) {
+          const dist = bvBegin - c.begin;
+          if (dist < bestDist) { bestDist = dist; bestOwner = c; }
         }
-      });
-      // Fallback: if no containing line found, use closest begin
-      if (bestKey === null) {
-        // Ưu tiên dòng main có begin <= bvBegin (dòng ngay trước BV)
-        let bestPrevKey = null, bestPrevDist = Infinity;
-        let bestAnyKey = null, bestAnyDist = Infinity;
-        Object.entries(lineMap).forEach(([key, mLine]) => {
-          const mBegin = mLine[0].begin;
-          if (mBegin <= bvBegin) {
-            const dist = bvBegin - mBegin;
-            if (dist < bestPrevDist) { bestPrevDist = dist; bestPrevKey = key; }
-          }
-          const dist = Math.abs(bvBegin - mBegin);
-          if (dist < bestAnyDist) { bestAnyDist = dist; bestAnyKey = key; }
-        });
-        bestKey = bestPrevKey !== null ? bestPrevKey : bestAnyKey;
       }
-      if (bestKey !== null) {
-        if (!bvLineMap[bestKey]) bvLineMap[bestKey] = [];
-        bvLineMap[bestKey].push(bvLine);
+      // Pass 2: closest begin <= bvBegin
+      if (!bestOwner) {
+        bestDist = Infinity;
+        for (const c of allCandidates) {
+          if (c.begin <= bvBegin) {
+            const dist = bvBegin - c.begin;
+            if (dist < bestDist) { bestDist = dist; bestOwner = c; }
+          }
+        }
+      }
+      // Pass 3: closest any
+      if (!bestOwner) {
+        bestDist = Infinity;
+        for (const c of allCandidates) {
+          const dist = Math.abs(bvBegin - c.begin);
+          if (dist < bestDist) { bestDist = dist; bestOwner = c; }
+        }
+      }
+
+      if (bestOwner) {
+        if (bestOwner.agent === 'v1') {
+          if (!bvLineMap[bestOwner.key]) bvLineMap[bestOwner.key] = [];
+          bvLineMap[bestOwner.key].push(bvLine);
+        } else {
+          if (!bvLineMapRV_prebuilt[bestOwner.key]) bvLineMapRV_prebuilt[bestOwner.key] = [];
+          bvLineMapRV_prebuilt[bestOwner.key].push(bvLine);
+        }
       }
     });
   }
@@ -2024,7 +2236,19 @@ return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex+
       if (!rvLineMap[li]) rvLineMap[li] = [];
       rvLineMap[li].push(w);
     });
+
+    // Build a time-range map for RV lines so BV can detect overlap
     const rvLineEntries = Object.entries(rvLineMap);
+    // rvTimeRanges: array of {begin, end, key} for each RV line
+    const rvTimeRanges = rvLineEntries.map(([key, lineWords]) => ({
+      key,
+      begin: lineWords[0].begin,
+      end: lineWords[lineWords.length-1].end || lineWords[lineWords.length-1].begin + 0.5
+    }));
+
+    // Use pre-built bvLineMapRV from the unified BV assignment above
+    const bvLineMapRV = bvLineMapRV_prebuilt;
+
     rvPTags = rvLineEntries.map(([key, lineWords], entryIdx) => {
       const pb = toTTMLTime(lineWords[0].begin);
       const nextEntry = rvLineEntries[entryIdx + 1];
@@ -2036,7 +2260,22 @@ return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex+
         const sep = (wi > 0 && ((w.isBsPart && w.bsIndex > 0) || (w.isHyphenPart && w.hyphenIndex > 0))) ? '' : (wi > 0 ? ' ' : '');
         return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
       }).join('');
-      return `      <p begin="${pb}" end="${pe}" ttm:agent="v2" itunes:key="L${pIndex++}">${spans}</p>`;
+
+      // Attach BV that belongs to this RV line as x-bg
+      let rvBvSpans = '';
+      if (bvLineMapRV[key]) {
+        rvBvSpans = bvLineMapRV[key].map(bvLine => {
+          const innerSpans = bvLine.map((w, wi) => {
+            const b = toTTMLTime(w.begin);
+            const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
+            const sep = (wi > 0 && ((w.isHyphenPart && w.hyphenIndex > 0) || (w.isBsPart && w.bsIndex > 0))) ? '' : (wi > 0 ? ' ' : '');
+            return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+          }).join('');
+          return `<span ttm:role="x-bg">${innerSpans}</span>`;
+        }).join('');
+      }
+
+      return `      <p begin="${pb}" end="${pe}" ttm:agent="v2" itunes:key="L${pIndex++}">${spans}${rvBvSpans}</p>`;
     }).join('\n');
   }
 
