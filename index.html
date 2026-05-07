@@ -1380,7 +1380,8 @@ function parseTTMLContent(xmlText, keepTiming) {
         const result = [];
         lines.forEach((tokens, li) => {
           tokens.forEach(t => {
-            result.push({ text: t.text, ttmlText: t.text, begin: t.begin||0, end: t.end||0, lineIndex: li });
+            const isDotGroup = t.text === '...';
+            result.push({ text: t.text, ttmlText: t.text, begin: t.begin||0, end: t.end||0, lineIndex: li, isDotGroup, isDot: false, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
           });
         });
         return result;
