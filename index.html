@@ -18,6 +18,11 @@
     --done: #1e1e1e;
     --active-glow: 0 0 30px rgba(220, 220, 220, 0.3);
     --rv-color: #6eb4ff;
+    --s01-color: #a8d8a8;
+    --s02-color: #f4c97a;
+    --s03-color: #e0e0e0;
+    --s04-color: #6eb4ff;
+    --s05-color: #c9a8f4;
   }
 
   .theme-ellinya {
@@ -31,6 +36,11 @@
     --done: #2a1020;
     --active-glow: 0 0 30px rgba(255, 110, 180, 0.45);
     --rv-color: #ffb347;
+    --s01-color: #ff9ec4;
+    --s02-color: #ffb6d9;
+    --s03-color: #ff6eb4;
+    --s04-color: #ffb347;
+    --s05-color: #ff8fd1;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -712,7 +722,7 @@
   <div class="left-panel">
 
     <div>
-      <div class="section-label">01 — Audio File</div>
+      <div class="section-label" style="color:var(--s01-color);">01 — Audio File</div>
       <div class="upload-zone" id="uploadZone">
         <input type="file" id="audioFile" accept="audio/*" onchange="loadAudio(this)">
         <div class="upload-icon">🎵</div>
@@ -722,7 +732,7 @@
     </div>
 
     <div id="playbackSection">
-      <div class="section-label">02 — Playback</div>
+      <div class="section-label" style="color:var(--s02-color);">02 — Playback</div>
       <div class="time-display">
         <span id="currentTime">00:00.000</span>
         <span id="totalTime">00:00</span>
@@ -743,7 +753,7 @@
     </div>
 
     <div class="lyrics-input-area">
-      <div class="section-label">03 — Lyrics</div>
+      <div class="section-label" style="color:var(--s03-color);">03 — Lyrics</div>
       <textarea class="lyrics-textarea" id="lyricsInput" placeholder="Paste lyrics here..."></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn primary" style="flex:1" onclick="loadLyrics()">LOAD LYRICS</button>
@@ -753,7 +763,7 @@
     <div class="stats-bar" id="statsBar"></div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:var(--rv-color);">04 — ADDITIONAL LYRICS</div>
+      <div class="section-label" style="color:var(--s04-color);">04 — Additional Lyrics</div>
       <textarea class="lyrics-textarea" id="rvInput" placeholder="Paste right-side lyrics here..." style="border-color:color-mix(in srgb, var(--rv-color) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn" style="flex:1;border-color:var(--rv-color);color:var(--rv-color);" onclick="loadRV()">LOAD ADDITIONAL LYRICS</button>
@@ -762,7 +772,7 @@
     </div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:var(--accent);">05 — Backing Vocal</div>
+      <div class="section-label" style="color:var(--s05-color);">05 — Backing Vocal</div>
       <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:color-mix(in srgb, var(--accent) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="loadBV()">LOAD BACKING VOCAL</button>
@@ -787,8 +797,8 @@
   <div class="right-panels">
     <div class="sync-tabs">
       <button class="sync-tab active" id="tab-lyric" onclick="switchTab('lyric')">03 — LYRIC SYNC</button>
-      <button class="sync-tab" id="tab-rv" onclick="switchTab('rv')" style="color:color-mix(in srgb, var(--rv-color) 50%, transparent);">04 — ADDITIONAL LYRICS</button>
-      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--accent) 50%, transparent);">05 — BACKING VOCAL</button>
+      <button class="sync-tab" id="tab-rv" onclick="switchTab('rv')" style="color:color-mix(in srgb, var(--s04-color) 50%, transparent);">04 — ADDITIONAL LYRICS</button>
+      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--s05-color) 50%, transparent);">05 — BACKING VOCAL</button>
     </div>
 
     <!-- LYRIC SYNC PANEL -->
