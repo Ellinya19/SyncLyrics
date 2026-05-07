@@ -875,7 +875,8 @@
       left: 2vw;
     }
 
-    .sync-tabs { overflow-x: auto; }
+    .sync-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
+    .sync-tabs::-webkit-scrollbar { display: none; }
     .sync-tab { padding: 10px 14px; font-size: 9px; }
 
     /* Mobile bottom bar for sync actions */
@@ -3402,9 +3403,10 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
   document.addEventListener('mouseup', () => { dragging = false; padHandle.style.cursor = 'grab'; });
 
   // Touch drag for pad
+  let padDragging = false;
   padHandle.addEventListener('touchstart', (e) => {
     const t = e.touches[0];
-    dragging = true;
+    padDragging = true;
     const rect = pad.getBoundingClientRect();
     ox = t.clientX - rect.left;
     oy = t.clientY - rect.top;
@@ -3412,9 +3414,11 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
     pad.style.top = rect.top + 'px';
     pad.style.bottom = 'auto';
     pad.style.right = 'auto';
-  }, { passive: true });
+    e.preventDefault();
+  }, { passive: false });
   document.addEventListener('touchmove', (e) => {
-    if (!dragging) return;
+    if (!padDragging) return;
+    e.preventDefault();
     const t = e.touches[0];
     let x = t.clientX - ox;
     let y = t.clientY - oy;
@@ -3422,8 +3426,8 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
     y = Math.max(0, Math.min(window.innerHeight - pad.offsetHeight, y));
     pad.style.left = x + 'px';
     pad.style.top = y + 'px';
-  }, { passive: true });
-  document.addEventListener('touchend', () => { dragging = false; });
+  }, { passive: false });
+  document.addEventListener('touchend', () => { padDragging = false; });
 })();
 
 // ─── SYNC PAD BUTTON LOGIC ────────────────────────────────────────────────────
