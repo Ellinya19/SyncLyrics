@@ -23,6 +23,7 @@
     --s03-color: #e0e0e0;
     --s04-color: #6eb4ff;
     --s05-color: #c9a8f4;
+    --s06-color: #b0b0b0;
   }
 
   .theme-ellinya {
@@ -41,6 +42,7 @@
     --s03-color: #ff6eb4;
     --s04-color: #ffb347;
     --s05-color: #ff8fd1;
+    --s06-color: #ffb3d9;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -277,7 +279,7 @@
     position: absolute;
     bottom: 60px;
     right: 24px;
-    width: 320px;
+    width: 420px;
     background: var(--surface);
     border: 1px solid var(--border);
     padding: 16px;
@@ -679,7 +681,7 @@
   <div class="header-controls">
   <div class="current-time-big" id="bigTime">⏱ <b>00:00.000</b></div>
     <button class="btn danger" id="undoBtn" disabled onclick="undoLast()">↩ UNDO</button>
-    <button class="btn" id="resetBtn" onclick="resetSync()">⟳ RESET</button>
+    <button class="btn" id="resetBtn" onclick="resetOrDelete()">⟳ RESET</button>
     <button class="btn primary" id="exportBtn" onclick="exportTTML()" disabled>EXPORT TTML</button>
     <div class="theme-picker-wrapper" id="themePickerWrapper">
       <button class="theme-btn" id="themeToggleBtn" onclick="toggleThemeDropdown()">
@@ -731,16 +733,28 @@
       </div>
     </div>
 
+    <div class="lyrics-input-area">
+      <div class="section-label" style="color:var(--s06-color);">02 — Import TTML</div>
+      <div class="upload-zone" id="ttmlImportZone" style="border-color:color-mix(in srgb, var(--s06-color) 40%, transparent);">
+        <input type="file" id="ttmlImportFile" accept=".ttml,.xml" onchange="importTTML(this)">
+        <div class="upload-icon">📄</div>
+        <p>Drop .ttml file here<br>or click to browse</p>
+        <div class="filename" id="ttmlImportFilename"></div>
+      </div>
+    </div>
+
     <div id="playbackSection">
-      <div class="section-label" style="color:var(--s02-color);">02 — Playback</div>
-      <div class="time-display">
-        <span id="currentTime">00:00.000</span>
-        <span id="totalTime">00:00</span>
+      <div class="section-label" style="color:var(--s02-color);">03 — Playback</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;">
+        <div class="time-display" style="justify-content:flex-start;gap:8px;flex-shrink:0;">
+          <span id="currentTime">00:00.000</span>
+          <span id="totalTime">00:00</span>
+        </div>
+        <div class="waveform-bar" id="seekBar" onclick="seekAudio(event)" style="flex:1;margin:0;">
+          <div class="progress" id="progressBar"></div>
+        </div>
       </div>
-      <div class="waveform-bar" id="seekBar" onclick="seekAudio(event)">
-        <div class="progress" id="progressBar"></div>
-      </div>
-      <div class="playback-controls">
+      <div class="playback-controls" style="margin-top:10px;">
         <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
         <select class="speed-select" onchange="setSpeed(this.value)">
           <option value="0.5">0.5×</option>
@@ -748,12 +762,12 @@
           <option value="1" selected>1×</option>
           <option value="1.25">1.25×</option>
         </select>
-        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;">HOLD SPACE/ARROW DOWN to sync</span>
+        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;white-space:nowrap;">HOLD SPACE/ARROW DOWN to sync</span>
       </div>
     </div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:var(--s03-color);">03 — Lyrics</div>
+      <div class="section-label" style="color:var(--s03-color);">04 — Lyrics</div>
       <textarea class="lyrics-textarea" id="lyricsInput" placeholder="Paste lyrics here..."></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn primary" style="flex:1" onclick="loadLyrics()">LOAD LYRICS</button>
@@ -763,7 +777,7 @@
     <div class="stats-bar" id="statsBar"></div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:var(--s04-color);">04 — Additional Lyrics</div>
+      <div class="section-label" style="color:var(--s04-color);">05 — Additional Lyrics</div>
       <textarea class="lyrics-textarea" id="rvInput" placeholder="Paste right-side lyrics here..." style="border-color:color-mix(in srgb, var(--rv-color) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn" style="flex:1;border-color:var(--rv-color);color:var(--rv-color);" onclick="loadRV()">LOAD ADDITIONAL LYRICS</button>
@@ -772,7 +786,7 @@
     </div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:var(--s05-color);">05 — Backing Vocal</div>
+      <div class="section-label" style="color:var(--s05-color);">06 — Backing Vocal</div>
       <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:color-mix(in srgb, var(--accent) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="loadBV()">LOAD BACKING VOCAL</button>
@@ -872,6 +886,8 @@
         </div>
       </div>
     </div>
+  <div id="importCanvas" style="display:none;"></div>
+  <div id="importStatusMsg" style="display:none;"></div>
   </div>
 </div>
 
@@ -888,6 +904,23 @@
     <div class="modal-footer">
       <button class="btn" onclick="copyTTML()">📋 COPY</button>
       <button class="btn primary" onclick="downloadTTML()">⬇ DOWNLOAD .ttml</button>
+    </div>
+  </div>
+</div>
+
+<!-- TTML IMPORT CONFIRM MODAL -->
+<div class="modal-overlay" id="ttmlImportModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 style="color:var(--s06-color);">Import TTML</h2>
+    </div>
+    <div class="modal-body" style="padding:28px 24px;">
+      <p style="font-size:14px;line-height:1.8;color:var(--text);">Do you want to <b style="color:var(--s06-color);">keep the timing</b> from the TTML file?</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7;">— <b>Yes</b>: Lyrics will be included with full timing (already synced).<br>— <b>No</b>: Keep only plain text, without timing.</p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;gap:16px;">
+      <button class="btn primary" style="min-width:100px;background:var(--s06-color);border-color:var(--s06-color);" onclick="confirmTTMLImport(true)">✓ Yes</button>
+      <button class="btn danger" style="min-width:100px;" onclick="confirmTTMLImport(false)">✕ No</button>
     </div>
   </div>
 </div>
@@ -923,12 +956,265 @@ let activeTab = 'lyric'; // 'lyric' | 'rv' | 'bv'
 
 function switchTab(tab) {
   activeTab = tab;
-  document.getElementById('tab-lyric').classList.toggle('active', tab === 'lyric');
-  document.getElementById('tab-rv').classList.toggle('active', tab === 'rv');
-  document.getElementById('tab-bv').classList.toggle('active', tab === 'bv');
-  document.getElementById('panel-lyric').classList.toggle('active', tab === 'lyric');
-  document.getElementById('panel-rv').classList.toggle('active', tab === 'rv');
-  document.getElementById('panel-bv').classList.toggle('active', tab === 'bv');
+  ['lyric','rv','bv'].forEach(t => {
+    document.getElementById('tab-' + t)?.classList.toggle('active', tab === t);
+    document.getElementById('panel-' + t)?.classList.toggle('active', tab === t);
+  });
+  updateResetDeleteBtn();
+}
+
+// ─── TTML IMPORT ─────────────────────────────────────────────────────────────
+let _pendingTTMLContent = null;
+
+function importTTML(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('ttmlImportFilename').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _pendingTTMLContent = e.target.result;
+    document.getElementById('ttmlImportModal').classList.add('visible');
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function confirmTTMLImport(keepTiming) {
+  document.getElementById('ttmlImportModal').classList.remove('visible');
+  if (!_pendingTTMLContent) return;
+  parseTTMLContent(_pendingTTMLContent, keepTiming);
+  _pendingTTMLContent = null;
+}
+
+function parseTTMLContent(xmlText, keepTiming) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    const ns = 'http://www.w3.org/ns/ttml';
+    const ttmNS = 'http://www.w3.org/ns/ttml#metadata';
+
+    // Detect agent mapping: v1 = main (left), v2 = right (additional)
+    const agents = {};
+    doc.querySelectorAll('*').forEach(el => {
+      const localName = el.localName || el.nodeName.split(':').pop();
+      if (localName === 'agent') {
+        const id = el.getAttributeNS('http://www.w3.org/XML/1998/namespace','id') || el.getAttribute('xml:id');
+        const type = el.getAttribute('type');
+        if (id) agents[id] = type; // 'person' = main/right, 'other' = could be agent2
+      }
+    });
+
+    const pEls = doc.getElementsByTagNameNS ? 
+      Array.from(doc.getElementsByTagNameNS(ns, 'p')) :
+      Array.from(doc.querySelectorAll('p'));
+    if (!pEls.length) {
+      // fallback: no namespace
+      Array.from(doc.querySelectorAll('p'));
+    }
+
+    const mainLines = []; // 03 - Lyrics (agent v1 or no agent)
+    const rvLines = [];   // 04 - Additional Lyrics (agent v2)
+    const bvLines = [];   // 05 - Backing Vocal (x-bg spans)
+
+    function parseTime(t) {
+      if (!t) return 0;
+      // HH:MM:SS.mmm
+      const m = t.match(/(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      if (m) return parseFloat(m[1])*3600 + parseFloat(m[2])*60 + parseFloat(m[3]);
+      // SS.mmm
+      const s = t.match(/(\d+(?:\.\d+)?)s?/);
+      return s ? parseFloat(s[1]) : 0;
+    }
+
+    function spansToText(spanEls, withTiming) {
+      return Array.from(spanEls).map(sp => {
+        const role = sp.getAttributeNS ? sp.getAttributeNS(ttmNS,'role') : sp.getAttribute('ttm:role');
+        if (role === 'x-bg') return null; // handled separately
+        const text = sp.textContent.trim();
+        if (!text) return null;
+        if (withTiming) {
+          const b = parseTime(sp.getAttribute('begin'));
+          const e = parseTime(sp.getAttribute('end'));
+          return { text, begin: b, end: e };
+        }
+        return { text };
+      }).filter(Boolean);
+    }
+
+    function buildLineText(tokens, withTiming) {
+      if (!withTiming) return tokens.map(t => t.text).join(' ');
+      // Format: word(begin→end) ... but we just return plain text for textarea
+      return tokens.map(t => t.text).join(' ');
+    }
+
+    function buildSyncedChips(canvas, tokens) {
+      canvas.innerHTML = '';
+      let lineDiv = document.createElement('div');
+      lineDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px 6px;margin-bottom:12px;';
+      tokens.forEach(t => {
+        const chip = document.createElement('div');
+        chip.className = 'word-chip done';
+        chip.textContent = t.text;
+        if (t.begin !== undefined) {
+          chip.title = `${formatTime(t.begin)} → ${formatTime(t.end||t.begin)}`;
+          chip.style.opacity = '0.85';
+        }
+        lineDiv.appendChild(chip);
+      });
+      canvas.appendChild(lineDiv);
+    }
+
+    pEls.forEach(p => {
+      const agent = p.getAttribute('ttm:agent') || p.getAttributeNS(ttmNS,'agent') || 'v1';
+      const isRight = agent === 'v2';
+
+      // Get direct span children (not x-bg)
+      const directSpans = Array.from(p.children).filter(el => {
+        const role = el.getAttributeNS ? el.getAttributeNS(ttmNS,'role') : el.getAttribute('ttm:role');
+        return (el.localName||el.nodeName.split(':').pop()) === 'span' && role !== 'x-bg';
+      });
+
+      // Get x-bg spans
+      const bgSpans = Array.from(p.children).filter(el => {
+        const role = el.getAttributeNS ? el.getAttributeNS(ttmNS,'role') : el.getAttribute('ttm:role');
+        return (el.localName||el.nodeName.split(':').pop()) === 'span' && role === 'x-bg';
+      });
+
+      if (directSpans.length) {
+        const tokens = spansToText(directSpans, keepTiming);
+        if (tokens.length) {
+          if (isRight) rvLines.push(tokens);
+          else mainLines.push(tokens);
+        }
+      }
+
+      bgSpans.forEach(bgSpan => {
+        const innerSpans = Array.from(bgSpan.children).filter(el =>
+          (el.localName||el.nodeName.split(':').pop()) === 'span'
+        );
+        const tokens = innerSpans.length ? spansToText(innerSpans, keepTiming) : [{ text: bgSpan.textContent.trim() }];
+        if (tokens.length && tokens.some(t=>t.text)) bvLines.push(tokens);
+      });
+    });
+
+    // ─ Fill textareas (plain text, bất kể keepTiming) ────────────────────────
+    if (mainLines.length) {
+      document.getElementById('lyricsInput').value = mainLines.map(l => buildLineText(l, false)).join('\n');
+    } else {
+      document.getElementById('lyricsInput').value = '';
+      words = []; timings = []; currentIndex = 0; endSyncStamped = false; reSyncTargetIndex = null;
+      renderWords(); updateStats();
+      document.getElementById('exportBtn').disabled = true;
+      document.getElementById('undoBtn').disabled = true;
+    }
+    if (rvLines.length) {
+      document.getElementById('rvInput').value = rvLines.map(l => buildLineText(l, false)).join('\n');
+    } else {
+      document.getElementById('rvInput').value = '';
+      rvWords = []; rvTimings = []; rvCurrentIndex = 0; rvEndSyncStamped = false; rvReSyncTargetIndex = null;
+      rvRenderWords(); rvUpdateStats();
+    }
+    if (bvLines.length) {
+      document.getElementById('bvInput').value = bvLines.map(l => buildLineText(l, false)).join('\n');
+    } else {
+      document.getElementById('bvInput').value = '';
+      bvWords = []; bvTimings = []; bvCurrentIndex = 0; bvEndSyncStamped = false; bvReSyncTargetIndex = null;
+      bvRenderWords(); bvUpdateStats();
+    }
+
+    // ─ Nếu chỉ lấy text (không giữ timing): auto load vào bảng sync ─────────
+    if (!keepTiming) {
+      if (mainLines.length) loadLyrics();
+      if (rvLines.length) loadRV();
+      if (bvLines.length) loadBV();
+    }
+
+    // ─ Show preview in import panel ──────────────────────────────────────────
+    const canvas = document.getElementById('importCanvas');
+    canvas.innerHTML = '';
+
+    function addSection(label, color, lines) {
+      if (!lines.length) return;
+      const sec = document.createElement('div');
+      sec.style.cssText = 'margin-bottom:24px;width:100%;';
+      const lbl = document.createElement('div');
+      lbl.className = 'section-label';
+      lbl.style.color = color;
+      lbl.textContent = label;
+      sec.appendChild(lbl);
+      lines.forEach(tokens => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px 4px;margin-bottom:8px;';
+        tokens.forEach(t => {
+          const chip = document.createElement('div');
+          chip.className = 'word-chip ' + (keepTiming ? 'done' : 'pending');
+          chip.textContent = t.text;
+          if (keepTiming && t.begin !== undefined) {
+            chip.title = `${formatTime(t.begin)} → ${formatTime(t.end||t.begin)}`;
+          }
+          row.appendChild(chip);
+        });
+        sec.appendChild(row);
+      });
+      canvas.appendChild(sec);
+    }
+
+    addSection('04 — Lyrics', 'var(--s03-color)', mainLines);
+    addSection('05 — Additional Lyrics', 'var(--s04-color)', rvLines);
+    addSection('06 — Backing Vocal', 'var(--s05-color)', bvLines);
+
+    // ─ If keepTiming: load synced words into sync tabs ────────────────────────
+    if (keepTiming) {
+      // Nếu không có data → bảng sync đã được clear ở bước fill textarea ở trên
+      function tokensToWords(lines) {
+        const result = [];
+        lines.forEach((tokens, li) => {
+          tokens.forEach(t => {
+            result.push({ text: t.text, ttmlText: t.text, begin: t.begin||0, end: t.end||0, lineIndex: li });
+          });
+        });
+        return result;
+      }
+      function timingsFromWords(ws) {
+        return ws.map(w => ({ begin: w.begin, end: w.end }));
+      }
+
+      if (mainLines.length) {
+        words = tokensToWords(mainLines);
+        timings = timingsFromWords(words);
+        currentIndex = words.length;
+        endSyncStamped = true;
+        renderWords();
+        updateStats();
+        document.getElementById('exportBtn').disabled = false;
+      }
+      if (rvLines.length) {
+        rvWords = tokensToWords(rvLines);
+        rvTimings = timingsFromWords(rvWords);
+        rvCurrentIndex = rvWords.length;
+        rvEndSyncStamped = true;
+        rvRenderWords();
+        rvUpdateStats();
+      }
+      if (bvLines.length) {
+        bvWords = tokensToWords(bvLines);
+        bvTimings = timingsFromWords(bvWords);
+        bvCurrentIndex = bvWords.length;
+        bvEndSyncStamped = true;
+        bvRenderWords();
+        bvUpdateStats();
+      }
+    }
+
+    const total = mainLines.length + rvLines.length + bvLines.length;
+    const msg = `✓ ${total} lines imported` + (keepTiming ? ` (with timing)` : ` (text only)`);
+    document.getElementById('importStatusMsg').textContent = msg;
+    setTimeout(() => { document.getElementById('importStatusMsg').textContent = ''; }, 4000);
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('importStatusMsg').textContent = '✗ Lỗi parse TTML: ' + err.message;
+  }
 }
 
 // ─── WORD SPLITTING ──────────────────────────────────────────────────────────
@@ -1201,6 +1487,7 @@ function stampWordStart() {
 
   document.getElementById('undoBtn').disabled = false;
   updateStats();
+  updateResetDeleteBtn();
 }
 
 function stampWordEnd() {
@@ -1309,15 +1596,95 @@ function undoLast() {
 }
 
 function resetSync() {
-  currentIndex = 0;
-  timings = [];
-  endSyncStamped = false;
-  words.forEach(w => { w.begin = null; w.end = null; });
-  renderWords();
-  updateStats();
-  document.getElementById('exportBtn').disabled = true;
-  document.getElementById('undoBtn').disabled = true;
-  setStatus('Reset ✓', 'ok');
+  if (activeTab === 'rv') {
+    rvCurrentIndex = 0;
+    rvTimings = [];
+    rvEndSyncStamped = false;
+    rvReSyncTargetIndex = null;
+    rvWords.forEach(w => { w.begin = null; w.end = null; });
+    rvRenderWords();
+    rvUpdateStats();
+    setStatus('Reset Additional Lyrics ✓', 'ok');
+  } else if (activeTab === 'bv') {
+    bvCurrentIndex = 0;
+    bvTimings = [];
+    bvEndSyncStamped = false;
+    bvReSyncTargetIndex = null;
+    bvWords.forEach(w => { w.begin = null; w.end = null; });
+    bvRenderWords();
+    bvUpdateStats();
+    setStatus('Reset Backing Vocal ✓', 'ok');
+  } else {
+    currentIndex = 0;
+    timings = [];
+    endSyncStamped = false;
+    reSyncTargetIndex = null;
+    words.forEach(w => { w.begin = null; w.end = null; });
+    renderWords();
+    updateStats();
+    document.getElementById('exportBtn').disabled = true;
+    document.getElementById('undoBtn').disabled = true;
+    setStatus('Reset ✓', 'ok');
+  }
+  updateResetDeleteBtn();
+}
+
+function updateResetDeleteBtn() {
+  const btn = document.getElementById('resetBtn');
+  let hasSynced = false;
+  let hasWords = false;
+  if (activeTab === 'rv') {
+    hasSynced = rvWords.some(w => w.begin !== null);
+    hasWords = rvWords.length > 0;
+  } else if (activeTab === 'bv') {
+    hasSynced = bvWords.some(w => w.begin !== null);
+    hasWords = bvWords.length > 0;
+  } else {
+    hasSynced = words.some(w => w.begin !== null);
+    hasWords = words.length > 0;
+  }
+  if (hasSynced) {
+    btn.textContent = '⟳ RESET';
+    btn.classList.remove('danger');
+    btn.disabled = false;
+  } else if (hasWords) {
+    btn.textContent = '✕ DELETE';
+    btn.classList.add('danger');
+    btn.disabled = false;
+  } else {
+    btn.textContent = '✕ DELETE';
+    btn.classList.add('danger');
+    btn.disabled = true;
+  }
+}
+
+function resetOrDelete() {
+  const btn = document.getElementById('resetBtn');
+  const isDelete = btn.textContent.includes('DELETE');
+  if (isDelete) {
+    // Xóa sạch tab đang mở (clear cả words lẫn lyrics textarea)
+    if (activeTab === 'rv') {
+      rvWords = []; rvTimings = []; rvCurrentIndex = 0; rvEndSyncStamped = false; rvReSyncTargetIndex = null;
+      document.getElementById('rvInput').value = '';
+      rvRenderWords(); rvUpdateStats();
+      setStatus('Deleted Additional Lyrics ✓', 'ok');
+    } else if (activeTab === 'bv') {
+      bvWords = []; bvTimings = []; bvCurrentIndex = 0; bvEndSyncStamped = false; bvReSyncTargetIndex = null;
+      document.getElementById('bvInput').value = '';
+      bvRenderWords(); bvUpdateStats();
+      setStatus('Deleted Backing Vocal ✓', 'ok');
+    } else {
+      words = []; timings = []; currentIndex = 0; endSyncStamped = false; reSyncTargetIndex = null;
+      document.getElementById('lyricsInput').value = '';
+      renderWords(); updateStats();
+      document.getElementById('exportBtn').disabled = true;
+      document.getElementById('undoBtn').disabled = true;
+      setStatus('Deleted Lyrics ✓', 'ok');
+    }
+  } else {
+    resetSync();
+  }
+  updateResetDeleteBtn();
 }
 
 function updateStats() {
@@ -1495,6 +1862,62 @@ function syncInputFromWords() {
     prevLineIdx = li;
   });
   document.getElementById('lyricsInput').value = lines.join('\n');
+}
+
+function syncBVInputFromWords() {
+  if (bvWords.length === 0) return;
+  const lineGroups = {};
+  bvWords.forEach(w => {
+    if (!lineGroups[w.lineIndex]) lineGroups[w.lineIndex] = [];
+    lineGroups[w.lineIndex].push(w);
+  });
+  const sortedLines = Object.keys(lineGroups).map(Number).sort((a, b) => a - b);
+  const lines = [];
+  let prevLineIdx = null;
+  sortedLines.forEach(li => {
+    if (prevLineIdx !== null) {
+      const gap = li - prevLineIdx;
+      for (let g = 1; g < gap; g++) lines.push('');
+    }
+    const lineWords = lineGroups[li];
+    let lineText = '';
+    lineWords.forEach((w, wi) => {
+      if (wi === 0) lineText += w.text;
+      else if (w.isBsPart && w.bsIndex > 0) lineText += '\\' + w.text;
+      else lineText += ' ' + w.text;
+    });
+    lines.push(lineText);
+    prevLineIdx = li;
+  });
+  document.getElementById('bvInput').value = lines.join('\n');
+}
+
+function syncRVInputFromWords() {
+  if (rvWords.length === 0) return;
+  const lineGroups = {};
+  rvWords.forEach(w => {
+    if (!lineGroups[w.lineIndex]) lineGroups[w.lineIndex] = [];
+    lineGroups[w.lineIndex].push(w);
+  });
+  const sortedLines = Object.keys(lineGroups).map(Number).sort((a, b) => a - b);
+  const lines = [];
+  let prevLineIdx = null;
+  sortedLines.forEach(li => {
+    if (prevLineIdx !== null) {
+      const gap = li - prevLineIdx;
+      for (let g = 1; g < gap; g++) lines.push('');
+    }
+    const lineWords = lineGroups[li];
+    let lineText = '';
+    lineWords.forEach((w, wi) => {
+      if (wi === 0) lineText += w.text;
+      else if (w.isBsPart && w.bsIndex > 0) lineText += '\\' + w.text;
+      else lineText += ' ' + w.text;
+    });
+    lines.push(lineText);
+    prevLineIdx = li;
+  });
+  document.getElementById('rvInput').value = lines.join('\n');
 }
 
 // ─── BACKING VOCAL FUNCTIONS ─────────────────────────────────────────────────
@@ -1760,11 +2183,35 @@ function bvStartEditChip(chip, index) {
       if (bvCurrentIndex > index) bvCurrentIndex--;
       bvRenderWords();
       bvUpdateStats();
+      syncBVInputFromWords();
       return;
+    }
+    if (newText.includes('\\')) {
+      const parts = newText.split('\\').filter(p => p.length > 0);
+      if (parts.length > 1) {
+        const baseLineIndex = bvWords[index].lineIndex;
+        const baseBegin = bvWords[index].begin;
+        const newWords = parts.map((part, idx) => ({
+          text: part, ttmlText: part,
+          begin: idx === 0 ? baseBegin : null, end: null,
+          lineIndex: baseLineIndex,
+          isBsPart: true, bsIndex: idx, bsTotal: parts.length,
+          isHyphenPart: false, hyphenIndex: -1
+        }));
+        bvWords.splice(index, 1, ...newWords);
+        bvTimings.splice(index, 1, ...newWords.map((w, idx) => idx === 0 && baseBegin !== null ? { begin: baseBegin, end: null } : null));
+        if (index < bvCurrentIndex) bvCurrentIndex = bvCurrentIndex + parts.length - 1;
+        bvRenderWords();
+        bvUpdateStats();
+        syncBVInputFromWords();
+        setBVStatus(`Split "${newText.replace(/\\/g, '·')}" into ${parts.length} words ✓`, 'ok');
+        return;
+      }
     }
     bvWords[index].text = newText;
     bvWords[index].ttmlText = newText;
     chip.textContent = newText;
+    syncBVInputFromWords();
     setBVStatus('BV lyrics updated ✓', 'ok');
   }
 
@@ -2038,11 +2485,35 @@ function rvStartEditChip(chip, index) {
       if (rvCurrentIndex > index) rvCurrentIndex--;
       rvRenderWords();
       rvUpdateStats();
+      syncRVInputFromWords();
       return;
+    }
+    if (newText.includes('\\')) {
+      const parts = newText.split('\\').filter(p => p.length > 0);
+      if (parts.length > 1) {
+        const baseLineIndex = rvWords[index].lineIndex;
+        const baseBegin = rvWords[index].begin;
+        const newWords = parts.map((part, idx) => ({
+          text: part, ttmlText: part,
+          begin: idx === 0 ? baseBegin : null, end: null,
+          lineIndex: baseLineIndex,
+          isBsPart: true, bsIndex: idx, bsTotal: parts.length,
+          isHyphenPart: false, hyphenIndex: -1
+        }));
+        rvWords.splice(index, 1, ...newWords);
+        rvTimings.splice(index, 1, ...newWords.map((w, idx) => idx === 0 && baseBegin !== null ? { begin: baseBegin, end: null } : null));
+        if (index < rvCurrentIndex) rvCurrentIndex = rvCurrentIndex + parts.length - 1;
+        rvRenderWords();
+        rvUpdateStats();
+        syncRVInputFromWords();
+        setRVStatus(`Split "${newText.replace(/\\/g, '·')}" into ${parts.length} words ✓`, 'ok');
+        return;
+      }
     }
     rvWords[index].text = newText;
     rvWords[index].ttmlText = newText;
     chip.textContent = newText;
+    syncRVInputFromWords();
     setRVStatus('RV lyrics updated ✓', 'ok');
   }
 
@@ -2471,6 +2942,11 @@ document.addEventListener('click', (e) => {
   }
   if (!document.getElementById('infoWrapper').contains(e.target)) {
     hideInfoPanel();
+  }
+  const importModal = document.getElementById('ttmlImportModal');
+  if (importModal.classList.contains('visible') && e.target === importModal) {
+    importModal.classList.remove('visible');
+    _pendingTTMLContent = null;
   }
 });
 
