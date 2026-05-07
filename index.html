@@ -751,7 +751,16 @@
     <div class="stats-bar" id="statsBar"></div>
 
     <div class="lyrics-input-area">
-      <div class="section-label" style="color:var(--accent);">04 — Backing Vocal</div>
+      <div class="section-label" style="color:#6eb4ff;">04 — ADDITIONAL LYRICS</div>
+      <textarea class="lyrics-textarea" id="rvInput" placeholder="Paste right-side lyrics here..." style="border-color:color-mix(in srgb, #6eb4ff 30%, transparent);"></textarea>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button class="btn" style="flex:1;border-color:#6eb4ff;color:#6eb4ff;" onclick="loadRV()">LOAD ADDITIONAL LYRICS</button>
+      </div>
+      <div class="stats-bar" id="rvStatsBar" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="lyrics-input-area">
+      <div class="section-label" style="color:var(--accent);">05 — Backing Vocal</div>
       <textarea class="lyrics-textarea" id="bvInput" placeholder="Paste backing vocal lyrics here..." style="border-color:color-mix(in srgb, var(--accent) 30%, transparent);"></textarea>
       <div style="margin-top: 12px; display: flex; gap: 8px;">
         <button class="btn" style="flex:1;border-color:var(--accent);color:var(--accent);" onclick="loadBV()">LOAD BACKING VOCAL</button>
@@ -776,7 +785,8 @@
   <div class="right-panels">
     <div class="sync-tabs">
       <button class="sync-tab active" id="tab-lyric" onclick="switchTab('lyric')">03 — LYRIC SYNC</button>
-      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--accent) 50%, transparent);">04 — BACKING VOCAL</button>
+      <button class="sync-tab" id="tab-rv" onclick="switchTab('rv')" style="color:color-mix(in srgb, #6eb4ff 50%, transparent);">04 — ADDITIONAL LYRICS</button>
+      <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--accent) 50%, transparent);">05 — BACKING VOCAL</button>
     </div>
 
     <!-- LYRIC SYNC PANEL -->
@@ -803,6 +813,28 @@
       </div>
     </div>
 
+    <!-- ADDITIONAL LYRICS SYNC PANEL -->
+    <div class="sync-panel" id="panel-rv">
+      <div class="right-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="word-display-area">
+          <div class="word-canvas" id="rvCanvas">
+            <div class="empty-state">
+              <div class="big-icon" style="filter:hue-rotate(200deg);">🎤</div>
+              <h3 style="color:#6eb4ff;">ADDITIONAL LYRICS</h3>
+              <p>Load right-side lyrics in section 04, then sync here.</p>
+            </div>
+          </div>
+        </div>
+        <div class="instruction-bar" style="border-top-color:color-mix(in srgb, #6eb4ff 20%, transparent);">
+          <div class="key-hint"><div class="key">HOLD SPACE/ARROW DOWN</div><span>Sync word (begin→end)</span></div>
+          <div class="key-hint"><div class="key">Z</div><span>Undo last stamp</span></div>
+          <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
+          <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+          <div class="status-msg" id="rvStatusMsg" style="color:#6eb4ff;"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- BACKING VOCAL SYNC PANEL -->
     <div class="sync-panel" id="panel-bv">
       <div class="right-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
@@ -811,7 +843,7 @@
             <div class="empty-state">
               <div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div>
               <h3 style="color:var(--accent);">Backing Vocal</h3>
-              <p>Load backing vocal lyrics in section 04, then sync here.</p>
+              <p>Load backing vocal lyrics in section 05, then sync here.</p>
             </div>
           </div>
         </div>
@@ -861,13 +893,24 @@ let bvTimings = [];
 let bvCurrentIndex = 0;
 let bvCurrentLineIndex = 0;
 let bvEndSyncStamped = false;
-let activeTab = 'lyric'; // 'lyric' | 'bv'
+
+// ─── ADDITIONAL LYRICS STATE ───────────────────────────────────────────────────────
+let rvWords = [];
+let rvTimings = [];
+let rvCurrentIndex = 0;
+let rvCurrentLineIndex = 0;
+let rvEndSyncStamped = false;
+let rvReSyncTargetIndex = null;
+
+let activeTab = 'lyric'; // 'lyric' | 'rv' | 'bv'
 
 function switchTab(tab) {
   activeTab = tab;
   document.getElementById('tab-lyric').classList.toggle('active', tab === 'lyric');
+  document.getElementById('tab-rv').classList.toggle('active', tab === 'rv');
   document.getElementById('tab-bv').classList.toggle('active', tab === 'bv');
   document.getElementById('panel-lyric').classList.toggle('active', tab === 'lyric');
+  document.getElementById('panel-rv').classList.toggle('active', tab === 'rv');
   document.getElementById('panel-bv').classList.toggle('active', tab === 'bv');
 }
 
@@ -1627,6 +1670,194 @@ function setBVStatus(msg, type) {
   setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
 }
 
+// ─── ADDITIONAL LYRICS FUNCTIONS ───────────────────────────────────────────────────
+function loadRV() {
+  const raw = document.getElementById('rvInput').value.trim();
+  if (!raw) { setRVStatus('Paste right lyrics first', 'err'); return; }
+
+  rvWords = [];
+  let lineIndex = 0;
+  const lines = raw.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === '') { lineIndex++; continue; }
+    const lineWords = trimmed.split(/\s+/).filter(w => w.length > 0);
+    for (const word of lineWords) {
+      const subWords = splitWord(word);
+      for (const sw of subWords) {
+        rvWords.push({ text: sw.display, ttmlText: sw.ttml, begin: null, end: null, lineIndex, isHyphenPart: sw.isHyphenPart || false, hyphenIndex: sw.hyphenIndex !== undefined ? sw.hyphenIndex : -1, isBsPart: sw.isBsPart || false, bsIndex: sw.bsIndex !== undefined ? sw.bsIndex : -1 });
+      }
+    }
+    lineIndex++;
+  }
+  if (rvWords.length === 0) { setRVStatus('No words found', 'err'); return; }
+  rvCurrentLineIndex = rvWords[0].lineIndex;
+
+  rvTimings = [];
+  rvCurrentIndex = 0;
+  rvEndSyncStamped = false;
+  rvReSyncTargetIndex = null;
+  rvRenderWords();
+  rvUpdateStats();
+  setRVStatus(`${rvWords.length} right lyrics words loaded ✓`, 'ok');
+  document.getElementById('exportBtn').disabled = true;
+}
+
+function rvRenderWords() {
+  const canvas = document.getElementById('rvCanvas');
+  if (rvWords.length === 0) {
+    canvas.innerHTML = `<div class="empty-state"><div class="big-icon" style="filter:hue-rotate(200deg);">🎤</div><h3 style="color:#6eb4ff;">Right Lyrics</h3><p>Load right-side lyrics in section 04.</p></div>`;
+    return;
+  }
+  canvas.innerHTML = '';
+
+  const lineGroups = {};
+  rvWords.forEach((w, i) => {
+    if (!lineGroups[w.lineIndex]) lineGroups[w.lineIndex] = [];
+    lineGroups[w.lineIndex].push({ w, i });
+  });
+  const sortedLines = Object.keys(lineGroups).map(Number).sort((a, b) => a - b);
+
+  sortedLines.forEach((lineIdx, rowNum) => {
+    if (rowNum > 0) {
+      const br = document.createElement('div');
+      br.style.cssText = 'width:100%;height:2px;background:rgba(110,180,255,0.25);margin:6px 0;flex-basis:100%;';
+      canvas.appendChild(br);
+    }
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;width:100%;flex-wrap:wrap;gap:10px 8px;position:relative;';
+
+    const entries = lineGroups[lineIdx];
+    const firstWord = entries[0].w;
+    const timeBadge = document.createElement('div');
+    timeBadge.id = `rv-line-time-${lineIdx}`;
+    timeBadge.style.cssText = 'margin-left:auto;font-family:"Space Mono",monospace;font-size:10px;color:#6eb4ff80;background:var(--surface);border:1px solid rgba(110,180,255,0.25);padding:3px 8px;letter-spacing:1px;white-space:nowrap;flex-shrink:0;align-self:center;';
+    timeBadge.textContent = firstWord.begin !== null ? formatTime(firstWord.begin) : '––:––.–––';
+
+    entries.forEach(({ w, i }) => {
+      const chip = document.createElement('div');
+      chip.className = 'word-chip';
+      chip.id = `rv-word-${i}`;
+      chip.style.setProperty('--accent', '#6eb4ff');
+      chip.textContent = w.text;
+      if (i < rvCurrentIndex) chip.classList.add('done');
+      else chip.classList.add('pending');
+      row.appendChild(chip);
+    });
+
+    row.appendChild(timeBadge);
+    canvas.appendChild(row);
+  });
+
+  const activeEl = document.getElementById(`rv-word-${rvCurrentIndex}`);
+  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function rvStampWordStart() {
+  if (rvWords.length === 0) { setRVStatus('Load right lyrics first', 'err'); return; }
+  if (!audio) { setRVStatus('Load audio first', 'err'); return; }
+  if (rvCurrentIndex >= rvWords.length) return;
+
+  const t = audio.currentTime;
+  rvTimings[rvCurrentIndex] = { begin: t, end: null };
+  rvWords[rvCurrentIndex].begin = t;
+
+  const el = document.getElementById(`rv-word-${rvCurrentIndex}`);
+  if (el) { el.classList.remove('pending'); el.classList.add('active'); el.style.background='#6eb4ff'; el.style.borderColor='#6eb4ff'; el.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+  const badge = document.getElementById(`rv-line-time-${rvWords[rvCurrentIndex].lineIndex}`);
+  if (badge && rvWords[rvCurrentIndex].begin !== null) badge.textContent = formatTime(t);
+
+  document.getElementById('undoBtn').disabled = false;
+  rvUpdateStats();
+}
+
+function rvStampWordEnd() {
+  if (rvWords.length === 0) return;
+  if (!audio) return;
+
+  if (rvCurrentIndex >= rvWords.length) {
+    if (!rvEndSyncStamped) {
+      const t = audio.currentTime;
+      if (rvWords.length > 0 && rvTimings[rvWords.length - 1] && rvTimings[rvWords.length - 1].end === null) {
+        rvTimings[rvWords.length - 1].end = t;
+        rvWords[rvWords.length - 1].end = t;
+      }
+      rvEndSyncStamped = true;
+      rvRenderWords();
+      setRVStatus('Right lyrics sync complete ✓ — Export TTML!', 'ok');
+      if ((endSyncStamped || words.length === 0) && (bvEndSyncStamped || bvWords.length === 0)) {
+        document.getElementById('exportBtn').disabled = false;
+      }
+    } else {
+      setRVStatus('Sync complete ✓', 'ok');
+    }
+    return;
+  }
+
+  if (!rvTimings[rvCurrentIndex] || rvTimings[rvCurrentIndex].begin === null) return;
+
+  const t = audio.currentTime;
+  rvTimings[rvCurrentIndex].end = t;
+  rvWords[rvCurrentIndex].end = t;
+
+  const el = document.getElementById(`rv-word-${rvCurrentIndex}`);
+  if (el) { el.classList.remove('active','pending'); el.classList.add('done'); el.style.background=''; el.style.borderColor=''; el.style.boxShadow=''; }
+  rvCurrentIndex++;
+
+  if (rvCurrentIndex >= rvWords.length) {
+    rvEndSyncStamped = true;
+    rvRenderWords();
+    setRVStatus('Right lyrics sync complete ✓ — Export TTML!', 'ok');
+    if ((endSyncStamped || words.length === 0) && (bvEndSyncStamped || bvWords.length === 0)) {
+      document.getElementById('exportBtn').disabled = false;
+    }
+  }
+
+  rvUpdateStats();
+}
+
+function rvUndoLast() {
+  if (rvCurrentIndex === 0 && !rvEndSyncStamped) return;
+  if (rvEndSyncStamped) {
+    rvEndSyncStamped = false;
+    document.getElementById('exportBtn').disabled = true;
+  }
+  if (rvCurrentIndex === 0) { rvRenderWords(); rvUpdateStats(); setRVStatus('Undo RV ✓', 'ok'); return; }
+  rvCurrentIndex--;
+  rvWords[rvCurrentIndex].begin = null;
+  rvWords[rvCurrentIndex].end = null;
+  rvTimings[rvCurrentIndex] = null;
+  if (rvCurrentIndex > 0 && rvTimings[rvCurrentIndex - 1]) {
+    rvTimings[rvCurrentIndex - 1].end = null;
+    rvWords[rvCurrentIndex - 1].end = null;
+  }
+  rvRenderWords();
+  document.getElementById('exportBtn').disabled = true;
+  if (rvCurrentIndex === 0) document.getElementById('undoBtn').disabled = true;
+  rvUpdateStats();
+  setRVStatus('Undo RV ✓', 'ok');
+}
+
+function rvUpdateStats() {
+  const done = rvWords.filter(w => w.begin !== null).length;
+  const total = rvWords.length;
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('rvStatsBar').innerHTML = total > 0 ? `
+    <span><b>${done}</b> / ${total} words</span>
+    <span><b>${pct}%</b> done</span>
+    ${rvCurrentIndex < total ? `<span>Next: <b>${rvWords[rvCurrentIndex]?.text || '—'}</b></span>` : '<span style="color:#6eb4ff"><b>COMPLETE</b></span>'}
+  ` : '';
+}
+
+function setRVStatus(msg, type) {
+  const el = document.getElementById('rvStatusMsg');
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+}
+
 // ─── TTML EXPORT ─────────────────────────────────────────────────────────────
 function exportTTML() {
   const stamped = words.filter(w => w.begin !== null);
@@ -1634,6 +1865,8 @@ function exportTTML() {
 
   const bvStamped = bvWords.filter(w => w.begin !== null);
   const hasBV = bvStamped.length > 0;
+  const rvStamped = rvWords.filter(w => w.begin !== null);
+  const hasRV = rvStamped.length > 0;
 
   const totalDur = audio && audio.duration ? audio.duration : (stamped[stamped.length-1].end || stamped[stamped.length-1].begin + 0.5);
   const durStr = toTTMLTime(totalDur);
@@ -1778,9 +2011,36 @@ if (hasBV && bvLineMap[key]) {
 return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSpans}</p>`;
   }).join('\n');
 
-  const agentMeta = `<ttm:agent type="person" xml:id="v1"/>`;
+  const agentMeta = `<ttm:agent type="person" xml:id="v1"/>${hasRV ? '<ttm:agent type="other" xml:id="v2"/>' : ''}`;
 
-  const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:amll="http://www.example.com/ns/amll" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word"><!-- The TTML was created using Ellinya's tool --><head><metadata>${agentMeta}</metadata></head><body dur="${durStr}"><div begin="${firstBegin}" end="${lastEnd}">\n${pTags}\n    </div></body></tt>`;
+  // Build right lyrics <p> tags (agent v2)
+  let rvPTags = '';
+  if (hasRV) {
+    const rvLineMap = {};
+    rvStamped.forEach(w => {
+      const li = w.lineIndex !== undefined ? w.lineIndex : 0;
+      if (!rvLineMap[li]) rvLineMap[li] = [];
+      rvLineMap[li].push(w);
+    });
+    const rvLineEntries = Object.entries(rvLineMap);
+    rvPTags = rvLineEntries.map(([key, lineWords], entryIdx) => {
+      const pb = toTTMLTime(lineWords[0].begin);
+      const nextEntry = rvLineEntries[entryIdx + 1];
+      const rawEnd = lineWords[lineWords.length-1].end || lineWords[lineWords.length-1].begin + 0.5;
+      const pe = toTTMLTime(nextEntry ? nextEntry[1][0].begin : rawEnd);
+      const spans = lineWords.map((w, wi) => {
+        const b = toTTMLTime(w.begin);
+        const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
+        const sep = (wi > 0 && ((w.isBsPart && w.bsIndex > 0) || (w.isHyphenPart && w.hyphenIndex > 0))) ? '' : (wi > 0 ? ' ' : '');
+        return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+      }).join('');
+      return `      <p begin="${pb}" end="${pe}" ttm:agent="v2" itunes:key="L${pIndex++}">${spans}</p>`;
+    }).join('\n');
+  }
+
+  const allPTags = rvPTags ? pTags + '\n' + rvPTags : pTags;
+
+  const ttml = `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:tts="http://www.w3.org/ns/ttml#styling" xmlns:amll="http://www.example.com/ns/amll" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word"><!-- The TTML was created using Ellinya's tool --><head><metadata>${agentMeta}</metadata></head><body dur="${durStr}"><div begin="${firstBegin}" end="${lastEnd}">\n${allPTags}\n    </div></body></tt>`;
 
   document.getElementById('ttmlOutput').textContent = ttml;
   document.getElementById('modalOverlay').classList.add('visible');
@@ -1844,11 +2104,11 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (!spaceHeld) {
       spaceHeld = true;
-      if (activeTab === 'bv') bvStampWordStart(); else stampWordStart();
+      if (activeTab === 'bv') bvStampWordStart(); else if (activeTab === 'rv') rvStampWordStart(); else stampWordStart();
     }
   } else if (e.code === 'KeyZ') {
     e.preventDefault();
-    if (activeTab === 'bv') bvUndoLast(); else undoLast();
+    if (activeTab === 'bv') bvUndoLast(); else if (activeTab === 'rv') rvUndoLast(); else undoLast();
   } else if (e.code === 'KeyP') {
     e.preventDefault();
     togglePlay();
@@ -1868,7 +2128,7 @@ document.addEventListener('keyup', (e) => {
     e.preventDefault();
     if (spaceHeld) {
       spaceHeld = false;
-      if (activeTab === 'bv') bvStampWordEnd(); else stampWordEnd();
+      if (activeTab === 'bv') bvStampWordEnd(); else if (activeTab === 'rv') rvStampWordEnd(); else stampWordEnd();
     }
   }
 });
