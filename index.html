@@ -128,7 +128,7 @@
 
   .main {
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: 25% 1fr;
     flex: 1;
     min-height: 0;
   }
@@ -277,9 +277,9 @@
 
   #playbackSection {
     position: absolute;
-    bottom: 60px;
-    right: 24px;
-    width: 420px;
+    bottom: 4vh;
+    right: 2vw;
+    width: min(420px, 90vw);
     background: var(--surface);
     border: 1px solid var(--border);
     padding: 16px;
@@ -703,6 +703,194 @@
     text-align: center;
     box-sizing: border-box;
   }
+
+  /* ─── SYNC BUTTON PAD ─────────────────────────────────────────────────────── */
+  #syncButtonPad {
+    position: fixed;
+    bottom: 4vh;
+    left: 2vw;
+    width: min(180px, 46vw);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 500;
+    cursor: grab;
+    user-select: none;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  #syncButtonPad .pad-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 7px 10px 4px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sync-pad-halves {
+    display: flex;
+    width: 100%;
+  }
+
+  .sync-pad-btn {
+    flex: 1;
+    padding: 18px 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 22px;
+    color: var(--accent);
+    transition: background 0.12s, transform 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .sync-pad-btn:hover { background: rgba(255,255,255,0.06); }
+  .sync-pad-btn:active { background: rgba(255,255,255,0.12); transform: scale(0.93); }
+
+  .sync-pad-btn.left-btn {
+    border-right: 1px solid var(--border);
+    border-radius: 0 0 0 10px;
+    color: var(--accent2);
+  }
+
+  .sync-pad-btn.right-btn {
+    border-radius: 0 0 10px 0;
+    color: var(--accent);
+  }
+
+  .sync-pad-btn.right-btn.holding {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
+  /* ─── MOBILE INTERFACE ────────────────────────────────────────────────────── */
+  .mobile-only { display: none; }
+  .desktop-only { display: flex; }
+
+  @media (max-width: 768px) {
+    .mobile-only { display: flex; }
+    .desktop-only { display: none !important; }
+
+    body { font-size: 14px; }
+
+    header {
+      padding: 12px 16px;
+      gap: 10px;
+    }
+
+    .logo { font-size: 20px; letter-spacing: 2px; }
+    .logo span { font-size: 10px; }
+
+    .header-controls {
+      gap: 6px;
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-end;
+    }
+
+    .btn { padding: 8px 12px; font-size: 10px; }
+
+    .main {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+
+    .left-panel {
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 14px;
+      gap: 12px;
+      max-height: 45vh;
+      overflow-y: auto;
+    }
+
+    .upload-zone { padding: 16px; }
+    .upload-zone .upload-icon { font-size: 22px; }
+    .upload-zone p { font-size: 12px; }
+
+    .lyrics-textarea { height: 110px; font-size: 12px; }
+
+    .word-display-area { padding: 16px 10px; }
+
+    .word-chip { font-size: 20px; padding: 3px 7px; }
+
+    .instruction-bar {
+      padding: 10px 12px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .key-hint { font-size: 10px; }
+    .key { font-size: 9px; padding: 3px 6px; }
+
+    #playbackSection {
+      position: fixed;
+      bottom: 2vh;
+      right: 2vw;
+      width: min(340px, 92vw);
+    }
+
+    #syncButtonPad {
+      width: min(160px, 44vw);
+      bottom: 2vh;
+      left: 2vw;
+    }
+
+    .sync-tabs { overflow-x: auto; }
+    .sync-tab { padding: 10px 14px; font-size: 9px; }
+
+    /* Mobile bottom bar for sync actions */
+    .mobile-sync-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      height: 64px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 600;
+    }
+
+    .mobile-sync-bar .m-undo-btn,
+    .mobile-sync-bar .m-stamp-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 26px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .mobile-sync-bar .m-undo-btn {
+      border-right: 1px solid var(--border);
+      color: var(--accent2);
+    }
+
+    .mobile-sync-bar .m-stamp-btn {
+      color: var(--accent);
+    }
+
+    .mobile-sync-bar .m-undo-btn:active { background: rgba(255,255,255,0.08); }
+    .mobile-sync-bar .m-stamp-btn:active { background: rgba(255,255,255,0.08); }
+    .mobile-sync-bar .m-stamp-btn.holding { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+
+    /* push content above mobile bar */
+    .right-panels { padding-bottom: 64px; }
+    .instruction-bar { padding-bottom: 70px; }
+  }
 </style>
 </head>
 <body>
@@ -940,6 +1128,21 @@
       <button class="btn primary" onclick="downloadTTML()">⬇ DOWNLOAD .ttml</button>
     </div>
   </div>
+</div>
+
+<!-- SYNC BUTTON PAD -->
+<div id="syncButtonPad">
+  <div class="pad-label">Sync Pad</div>
+  <div class="sync-pad-halves">
+    <button class="sync-pad-btn left-btn" id="padUndoBtn" title="Undo (Z / ↑)">↑</button>
+    <button class="sync-pad-btn right-btn" id="padStampBtn" title="Stamp (Space / ↓)">↓</button>
+  </div>
+</div>
+
+<!-- MOBILE SYNC BAR -->
+<div class="mobile-sync-bar mobile-only">
+  <button class="m-undo-btn" id="mobileUndoBtn">↑</button>
+  <button class="m-stamp-btn" id="mobileStampBtn">↓</button>
 </div>
 
 <!-- TTML IMPORT CONFIRM MODAL -->
@@ -3131,6 +3334,144 @@ zone.addEventListener('drop', e => {
 const defaultLyrics = `This is a sample of the lyrics`;
 
 document.getElementById('lyricsInput').value = defaultLyrics;
+
+// ─── DEVICE DETECTION ────────────────────────────────────────────────────────
+const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+// ─── SYNC BUTTON PAD (draggable) ─────────────────────────────────────────────
+(function() {
+  const pad = document.getElementById('syncButtonPad');
+  let dragging = false, ox = 0, oy = 0;
+  pad.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    dragging = true;
+    const rect = pad.getBoundingClientRect();
+    ox = e.clientX - rect.left;
+    oy = e.clientY - rect.top;
+    pad.style.position = 'fixed';
+    pad.style.left = rect.left + 'px';
+    pad.style.top = rect.top + 'px';
+    pad.style.bottom = 'auto';
+    pad.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    let x = e.clientX - ox;
+    let y = e.clientY - oy;
+    x = Math.max(0, Math.min(window.innerWidth - pad.offsetWidth, x));
+    y = Math.max(0, Math.min(window.innerHeight - pad.offsetHeight, y));
+    pad.style.left = x + 'px';
+    pad.style.top = y + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; pad.style.cursor = 'grab'; });
+
+  // Touch drag for pad
+  pad.addEventListener('touchstart', (e) => {
+    if (e.target.tagName === 'BUTTON') return;
+    const t = e.touches[0];
+    dragging = true;
+    const rect = pad.getBoundingClientRect();
+    ox = t.clientX - rect.left;
+    oy = t.clientY - rect.top;
+    pad.style.position = 'fixed';
+    pad.style.left = rect.left + 'px';
+    pad.style.top = rect.top + 'px';
+    pad.style.bottom = 'auto';
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    let x = t.clientX - ox;
+    let y = t.clientY - oy;
+    x = Math.max(0, Math.min(window.innerWidth - pad.offsetWidth, x));
+    y = Math.max(0, Math.min(window.innerHeight - pad.offsetHeight, y));
+    pad.style.left = x + 'px';
+    pad.style.top = y + 'px';
+  }, { passive: true });
+  document.addEventListener('touchend', () => { dragging = false; });
+})();
+
+// ─── SYNC PAD BUTTON LOGIC ────────────────────────────────────────────────────
+(function() {
+  const stampBtn = document.getElementById('padStampBtn');
+  const undoBtn = document.getElementById('padUndoBtn');
+
+  // Stamp: mousedown = begin, mouseup = end
+  stampBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    stampBtn.classList.add('holding');
+    if (!spaceHeld) {
+      spaceHeld = true;
+      if (activeTab === 'bv') bvStampWordStart(); else if (activeTab === 'rv') rvStampWordStart(); else stampWordStart();
+    }
+  });
+  stampBtn.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    stampBtn.classList.remove('holding');
+    if (spaceHeld) {
+      spaceHeld = false;
+      if (activeTab === 'bv') bvStampWordEnd(); else if (activeTab === 'rv') rvStampWordEnd(); else stampWordEnd();
+    }
+  });
+  stampBtn.addEventListener('mouseleave', () => {
+    if (spaceHeld) {
+      stampBtn.classList.remove('holding');
+      spaceHeld = false;
+      if (activeTab === 'bv') bvStampWordEnd(); else if (activeTab === 'rv') rvStampWordEnd(); else stampWordEnd();
+    }
+  });
+
+  // Touch stamp
+  stampBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    stampBtn.classList.add('holding');
+    if (!spaceHeld) {
+      spaceHeld = true;
+      if (activeTab === 'bv') bvStampWordStart(); else if (activeTab === 'rv') rvStampWordStart(); else stampWordStart();
+    }
+  }, { passive: false });
+  stampBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    stampBtn.classList.remove('holding');
+    if (spaceHeld) {
+      spaceHeld = false;
+      if (activeTab === 'bv') bvStampWordEnd(); else if (activeTab === 'rv') rvStampWordEnd(); else stampWordEnd();
+    }
+  }, { passive: false });
+
+  // Undo btn
+  const doUndo = () => { if (activeTab === 'bv') bvUndoLast(); else if (activeTab === 'rv') rvUndoLast(); else undoLast(); };
+  undoBtn.addEventListener('mousedown', (e) => { e.preventDefault(); doUndo(); });
+  undoBtn.addEventListener('touchstart', (e) => { e.preventDefault(); doUndo(); }, { passive: false });
+})();
+
+// ─── MOBILE SYNC BAR LOGIC ────────────────────────────────────────────────────
+(function() {
+  const mStamp = document.getElementById('mobileStampBtn');
+  const mUndo = document.getElementById('mobileUndoBtn');
+  if (!mStamp || !mUndo) return;
+
+  mStamp.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    mStamp.classList.add('holding');
+    if (!spaceHeld) {
+      spaceHeld = true;
+      if (activeTab === 'bv') bvStampWordStart(); else if (activeTab === 'rv') rvStampWordStart(); else stampWordStart();
+    }
+  }, { passive: false });
+  mStamp.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    mStamp.classList.remove('holding');
+    if (spaceHeld) {
+      spaceHeld = false;
+      if (activeTab === 'bv') bvStampWordEnd(); else if (activeTab === 'rv') rvStampWordEnd(); else stampWordEnd();
+    }
+  }, { passive: false });
+
+  const doUndo = () => { if (activeTab === 'bv') bvUndoLast(); else if (activeTab === 'rv') rvUndoLast(); else undoLast(); };
+  mUndo.addEventListener('touchstart', (e) => { e.preventDefault(); doUndo(); }, { passive: false });
+})();
 
 // ─── THEME PICKER ─────────────────────────────────────────────────────────────
 let currentTheme = 'dark';
