@@ -1914,6 +1914,17 @@ function updateProgress() {
 }
 
 // ─── CLEAN SECTION TAGS ──────────────────────────────────────────────────────
+function extractParenToBackingVocal(raw) {
+  const bvLines = [];
+  const cleaned = raw.split('\n').map(line => {
+    const parenMatches = [...line.matchAll(/\(([^)]+)\)/g)];
+    if (parenMatches.length === 0) return line;
+    parenMatches.forEach(m => bvLines.push(m[1].trim()));
+    return line.replace(/\s*\([^)]+\)/g, '').trim();
+  }).join('\n');
+  return { cleaned, bvLines };
+}
+
 function cleanSectionTags(raw) {
   const sectionPattern = /\[\s*(Header|Translation|Instrumental|Intro|Outro|Skit|Part|Verse(?:\s*\d*)?|Pre-?Chorus|Chorus|Post-?Chorus|Refrain|Bridge|Breakdown|Interlude|Build|Drop)(?:[^\]]*)\]\s*/gi;
   return raw.replace(sectionPattern, (match, tag) => {
@@ -1924,10 +1935,18 @@ function cleanSectionTags(raw) {
 
 // ─── LYRICS ──────────────────────────────────────────────────────────────────
 function loadLyrics() {
-  const raw = cleanSectionTags(document.getElementById('lyricsInput').value.trim());
-  if (!raw) { setStatus('Paste lyrics first', 'err'); return; }
+  const rawInput = cleanSectionTags(document.getElementById('lyricsInput').value.trim());
+  if (!rawInput) { setStatus('Paste lyrics first', 'err'); return; }
+  const { cleaned: raw, bvLines } = extractParenToBackingVocal(rawInput);
   document.getElementById('lyricsInput').value = raw;
   window._baseline_lyricsInput = raw;
+  if (bvLines.length > 0) {
+    const existingBV = document.getElementById('bvInput').value.trim();
+    const newBVText = bvLines.join('\n');
+    document.getElementById('bvInput').value = existingBV ? existingBV + '\n' + newBVText : newBVText;
+    loadBV();
+    setStatus(`Tách ${bvLines.length} dòng backing vocal từ ngoặc tròn ✓`, 'ok');
+  }
 
   words = [];
   let lineIndex = 0;
