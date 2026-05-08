@@ -145,6 +145,7 @@
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     width: fit-content;
+    min-width: 0;
   }
 
   .sync-tab {
@@ -866,26 +867,81 @@
       position: fixed;
       bottom: 2vh;
       right: 2vw;
-      width: min(340px, 92vw);
+      width: min(260px, 72vw);
+      font-size: 10px;
     }
 
     #syncButtonPad {
-      width: min(160px, 44vw);
+      width: min(120px, 32vw);
       bottom: 2vh;
       left: 2vw;
     }
 
-    .sync-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
+    @media (max-width: 480px) {
+      #playbackSection {
+        width: min(230px, 66vw);
+        bottom: 1.5vh;
+        right: 1.5vw;
+      }
+      #syncButtonPad {
+        width: min(105px, 30vw);
+        bottom: 1.5vh;
+        left: 1.5vw;
+      }
+      .sync-pad-btn { padding: 10px 0; font-size: 16px; }
+      #playbackSection .playback-inner { padding: 8px 10px 10px; }
+    }
+
+    @media (max-width: 380px) {
+      #playbackSection {
+        width: min(200px, 60vw);
+        bottom: 1vh;
+        right: 1vw;
+      }
+      #syncButtonPad {
+        width: min(95px, 28vw);
+        bottom: 1vh;
+        left: 1vw;
+      }
+      .sync-pad-btn { padding: 8px 0; font-size: 14px; }
+      #playbackSection .playback-inner { padding: 6px 8px 8px; }
+    }
+
+    .sync-tabs { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; scrollbar-width: none; }
     .sync-tabs::-webkit-scrollbar { display: none; }
     .sync-tab { padding: 10px 14px; font-size: 9px; }
 
+    .tabs-drag-handle {
+      height: 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: grab;
+      touch-action: pan-x;
+      user-select: none;
+      -webkit-user-select: none;
+      flex-shrink: 0;
+    }
+    .tabs-drag-handle:active { cursor: grabbing; }
+    .tabs-drag-handle-bar {
+      width: 40px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--muted);
+      opacity: 0.5;
+    }
+
     /* Mobile swipe between sync panels */
-    .right-panels { overflow: hidden; position: relative; }
+    .right-panels { overflow: hidden; position: relative; display: flex; flex-direction: column; }
     .sync-panels-wrapper {
       display: flex;
       flex-direction: row;
       width: 300%;
       transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      flex: 1;
+      min-height: 0;
     }
     .sync-panels-wrapper .sync-panel {
       flex: 0 0 33.3333%;
@@ -893,6 +949,12 @@
       display: flex !important;
       flex-direction: column;
     }
+    .sync-panels-wrapper .sync-panel .instruction-bar { display: none !important; }
+    .mobile-shared-instruction-bar { display: flex; flex-shrink: 0; }
+  }
+  @media (min-width: 769px) {
+    .mobile-shared-instruction-bar { display: none !important; }
+    .sync-panels-wrapper .sync-panel .instruction-bar { display: flex !important; }
 
     /* Mobile bottom bar for sync actions */
     .mobile-sync-bar {
@@ -938,6 +1000,22 @@
     /* push content above mobile bar */
     .right-panels { padding-bottom: 0; }
     .instruction-bar { padding-bottom: 16px; }
+
+    /* Credits panel: at bottom of scrollable page, not fixed */
+    #ellinyaPanel {
+      position: static !important;
+      bottom: auto !important;
+      left: auto;
+      right: auto;
+      margin: 0;
+      margin-top: auto;
+      padding: 12px 14px 12px !important;
+      z-index: auto;
+      border-top: 1px solid rgba(255,110,180,0.25);
+      order: 999;
+      padding-bottom: 12px !important;
+      background: transparent !important;
+    }
   }
 </style>
 </head>
@@ -1034,7 +1112,11 @@
           <option value="1" selected>1×</option>
           <option value="1.25">1.25×</option>
         </select>
-        <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); margin-left: auto;white-space:nowrap;">HOLD SPACE / ↓ to sync</span>
+        <div style="margin-left:auto;gap:8px;display:flex;align-items:center;">
+          <button id="seekBackBtn" onclick="if(audio)audio.currentTime=Math.max(0,audio.currentTime-2)" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--accent);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none;">←</button>
+          <button id="seekFwdBtn" onclick="if(audio)audio.currentTime=Math.min(audio.duration||0,audio.currentTime+2)" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--accent);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none;">→</button>
+          <span style="font-family: 'Space Mono'; font-size: 10px; color: var(--muted); white-space:nowrap;" class="desktop-only">HOLD SPACE / ↓ to sync</span>
+        </div>
       </div>
       </div>
     </div>
@@ -1067,7 +1149,7 @@
       <div class="stats-bar" id="bvStatsBar" style="margin-top:10px;"></div>
     </div>
 
-    <div class="lyrics-input-area" id="ellinyaPanel" style="position:sticky;bottom:0;background:var(--bg);padding-top:16px;margin-top:auto;order:999;padding-bottom:70px;">
+    <div class="lyrics-input-area" id="ellinyaPanel" style="padding-top:16px;margin-top:auto;order:999;">
       <div class="section-label" style="color:#ff6eb4;">Credits</div>
       <div style="background:var(--surface);border:1px solid rgba(255,110,180,0.3);padding:14px;display:flex;flex-direction:column;gap:6px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#ff6eb4;line-height:1;">By Ellinya 🌸</div>
@@ -1082,7 +1164,7 @@
 
   <!-- RIGHT PANELS -->
   <div class="right-panels">
-    <div class="sync-tabs">
+    <div class="sync-tabs" id="syncTabsBar">
       <button class="sync-tab active" id="tab-lyric" onclick="switchTab('lyric')">03 — LYRIC SYNC</button>
       <button class="sync-tab" id="tab-rv" onclick="switchTab('rv')" style="color:color-mix(in srgb, var(--s04-color) 50%, transparent);">04 — ADDITIONAL LYRICS</button>
       <button class="sync-tab" id="tab-bv" onclick="switchTab('bv')" style="color:color-mix(in srgb, var(--s05-color) 50%, transparent);">05 — BACKING VOCAL</button>
@@ -1161,6 +1243,14 @@
       </div>
     </div>
   </div><!-- end sync-panels-wrapper -->
+    <div class="instruction-bar mobile-shared-instruction-bar" id="sharedInstructionBar">
+      <div class="key-hint"><div class="key">HOLD SPACE / ↓</div><span>Sync word (begin→end)</span></div>
+      <div class="key-hint"><div class="key">Z / ↑</div><span>Undo last stamp</span></div>
+      <div class="key-hint"><div class="key">P</div><span>Play / Pause</span></div>
+      <div class="key-hint"><div class="key">← →</div><span>Seek ±2s</span></div>
+      <div class="key-hint"><div class="key">DBLCLICK</div><span>Correct the word directly.</span></div>
+      <div class="key-hint"><div class="key">CLICK (done)</div><span>Re-sync from here</span></div>
+    </div>
   <div id="importCanvas" style="display:none;"></div>
   <div id="importStatusMsg" style="display:none;"></div>
   </div>
@@ -3449,6 +3539,50 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
       applySwipePosition(idx, true);
     }
   }, { passive: true });
+})();
+
+// ─── SYNC TABS DRAG SCROLL (mobile) ──────────────────────────────────────────
+(function() {
+  const tabs = document.getElementById('syncTabsBar');
+  const handle = document.getElementById('tabsDragHandle');
+  if (!tabs) return;
+
+  // Hiện handle chỉ trên mobile (vẫn giữ handle nhưng không dùng để kéo nữa)
+  if (handle) {
+    if (window.innerWidth <= 768) handle.style.display = 'flex';
+    window.addEventListener('resize', () => {
+      handle.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+    });
+  }
+
+  let isDown = false, startX = 0, scrollLeft = 0, moved = false;
+
+  // Kéo trực tiếp trên tab bar (touch)
+  tabs.addEventListener('touchstart', (e) => {
+    isDown = true;
+    moved = false;
+    startX = e.touches[0].pageX;
+    scrollLeft = tabs.scrollLeft;
+    // Không preventDefault ở đây để click tab vẫn hoạt động
+  }, { passive: true });
+
+  tabs.addEventListener('touchmove', (e) => {
+    if (!isDown) return;
+    const dx = Math.abs(startX - e.touches[0].pageX);
+    if (dx > 5) moved = true; // Phân biệt kéo vs tap
+    if (!moved) return;
+    e.preventDefault();
+    const walk = startX - e.touches[0].pageX;
+    const maxScroll = tabs.scrollWidth - tabs.offsetWidth;
+    tabs.scrollLeft = Math.max(0, Math.min(maxScroll, scrollLeft + walk));
+  }, { passive: false });
+
+  tabs.addEventListener('touchend', (e) => {
+    if (moved) e.stopPropagation(); // Chặn click nếu đã kéo
+    isDown = false;
+    moved = false;
+  });
+  tabs.addEventListener('touchcancel', () => { isDown = false; moved = false; });
 })();
 
 // ─── SYNC BUTTON PAD (draggable) ─────────────────────────────────────────────
