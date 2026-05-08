@@ -1365,10 +1365,17 @@ function switchTab(tab) {
 function updateLoadBtnState(btnId, hasTimedWords) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
-  if (hasTimedWords) {
+  const textareaId = btnId === 'loadLyricsBtn' ? 'lyricsInput' : btnId === 'loadRVBtn' ? 'rvInput' : 'bvInput';
+  const baselineKey = '_baseline_' + textareaId;
+  const currentVal = document.getElementById(textareaId).value;
+  const hasLoadedWords = btnId === 'loadLyricsBtn' ? words.length > 0 :
+                         btnId === 'loadRVBtn' ? rvWords.length > 0 : bvWords.length > 0;
+  const isModified = hasLoadedWords && (window[baselineKey] !== currentVal);
+  const showUpdate = hasTimedWords || isModified;
+  if (showUpdate) {
     btn.textContent = btn.id === 'loadLyricsBtn' ? 'UPDATE LYRICS' :
                       btn.id === 'loadRVBtn' ? 'UPDATE ADDITIONAL LYRICS' : 'UPDATE BACKING VOCAL';
-    btn.classList.remove('primary');
+    if (btn.id === 'loadLyricsBtn') btn.classList.add('primary');
     btn.style.opacity = '';
   } else {
     btn.textContent = btn.id === 'loadLyricsBtn' ? 'LOAD LYRICS' :
@@ -1452,8 +1459,9 @@ function handleLoadOrUpdateLyrics() {
   const hasTimed = words.some(w => w.begin !== null);
   if (!hasTimed) { loadLyrics(); return; }
   // UPDATE mode
-  const raw = document.getElementById('lyricsInput').value.trim();
+  const raw = cleanSectionTags(document.getElementById('lyricsInput').value.trim());
   if (!raw) { setStatus('Paste lyrics first', 'err'); return; }
+  document.getElementById('lyricsInput').value = raw;
   const newTokens = parseInputToTokens(raw, true);
   if (newTokens.length === 0) { setStatus('No words found', 'err'); return; }
   const { result, newCurrentIndex } = applyDiffUpdate(words, newTokens, currentIndex, endSyncStamped);
@@ -1471,8 +1479,9 @@ function handleLoadOrUpdateLyrics() {
 function handleLoadOrUpdateRV() {
   const hasTimed = rvWords.some(w => w.begin !== null);
   if (!hasTimed) { loadRV(); return; }
-  const raw = document.getElementById('rvInput').value.trim();
+  const raw = cleanSectionTags(document.getElementById('rvInput').value.trim());
   if (!raw) { setRVStatus('Paste right lyrics first', 'err'); return; }
+  document.getElementById('rvInput').value = raw;
   const newTokens = parseInputToTokens(raw, false);
   if (newTokens.length === 0) { setRVStatus('No words found', 'err'); return; }
   const { result, newCurrentIndex } = applyDiffUpdate(rvWords, newTokens, rvCurrentIndex, rvEndSyncStamped);
@@ -1489,8 +1498,9 @@ function handleLoadOrUpdateRV() {
 function handleLoadOrUpdateBV() {
   const hasTimed = bvWords.some(w => w.begin !== null);
   if (!hasTimed) { loadBV(); return; }
-  const raw = document.getElementById('bvInput').value.trim();
+  const raw = cleanSectionTags(document.getElementById('bvInput').value.trim());
   if (!raw) { setBVStatus('Paste backing vocal first', 'err'); return; }
+  document.getElementById('bvInput').value = raw;
   const newTokens = parseInputToTokens(raw, false);
   if (newTokens.length === 0) { setBVStatus('No words found', 'err'); return; }
   const { result, newCurrentIndex } = applyDiffUpdate(bvWords, newTokens, bvCurrentIndex, bvEndSyncStamped);
@@ -1780,6 +1790,9 @@ function parseTTMLContent(xmlText, keepTiming) {
       }
     }
 
+    if (mainLines.length) window._baseline_lyricsInput = document.getElementById('lyricsInput').value;
+    if (rvLines.length) window._baseline_rvInput = document.getElementById('rvInput').value;
+    if (bvLines.length) window._baseline_bvInput = document.getElementById('bvInput').value;
     refreshAllLoadBtns();
     const total = mainLines.length + rvLines.length + bvLines.length;
     const msg = `✓ ${total} lines imported` + (keepTiming ? ` (with timing)` : ` (text only)`);
@@ -1900,10 +1913,21 @@ function updateProgress() {
   document.getElementById('bigTime').innerHTML = `⏱ <b>${fmt}</b>`;
 }
 
+// ─── CLEAN SECTION TAGS ──────────────────────────────────────────────────────
+function cleanSectionTags(raw) {
+  const sectionPattern = /\[\s*(Header|Translation|Instrumental|Intro|Outro|Skit|Part|Verse(?:\s*\d*)?|Pre-?Chorus|Chorus|Post-?Chorus|Refrain|Bridge|Breakdown|Interlude|Build|Drop)(?:[^\]]*)\]\s*/gi;
+  return raw.replace(sectionPattern, (match, tag) => {
+    if (/^instrumental$/i.test(tag.trim())) return '...\n';
+    return '';
+  }).replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // ─── LYRICS ──────────────────────────────────────────────────────────────────
 function loadLyrics() {
-  const raw = document.getElementById('lyricsInput').value.trim();
+  const raw = cleanSectionTags(document.getElementById('lyricsInput').value.trim());
   if (!raw) { setStatus('Paste lyrics first', 'err'); return; }
+  document.getElementById('lyricsInput').value = raw;
+  window._baseline_lyricsInput = raw;
 
   words = [];
   let lineIndex = 0;
@@ -2511,8 +2535,10 @@ function syncRVInputFromWords() {
 
 // ─── BACKING VOCAL FUNCTIONS ─────────────────────────────────────────────────
 function loadBV() {
-  const raw = document.getElementById('bvInput').value.trim();
+  const raw = cleanSectionTags(document.getElementById('bvInput').value.trim());
   if (!raw) { setBVStatus('Paste backing vocal first', 'err'); return; }
+  document.getElementById('bvInput').value = raw;
+  window._baseline_bvInput = raw;
 
   bvWords = [];
   let lineIndex = 0;
@@ -2808,8 +2834,10 @@ function bvStartEditChip(chip, index) {
 
 // ─── ADDITIONAL LYRICS FUNCTIONS ───────────────────────────────────────────────────
 function loadRV() {
-  const raw = document.getElementById('rvInput').value.trim();
+  const raw = cleanSectionTags(document.getElementById('rvInput').value.trim());
   if (!raw) { setRVStatus('Paste right lyrics first', 'err'); return; }
+  document.getElementById('rvInput').value = raw;
+  window._baseline_rvInput = raw;
 
   rvWords = [];
   let lineIndex = 0;
@@ -3494,6 +3522,11 @@ zone.addEventListener('drop', e => {
 const defaultLyrics = `This is a sample of the lyrics`;
 
 document.getElementById('lyricsInput').value = defaultLyrics;
+
+// ─── TEXTAREA CHANGE DETECTION FOR LOAD/UPDATE BTN ───────────────────────────
+document.getElementById('lyricsInput').addEventListener('input', () => updateLoadBtnState('loadLyricsBtn', words.some(w => w.begin !== null)));
+document.getElementById('rvInput').addEventListener('input', () => updateLoadBtnState('loadRVBtn', rvWords.some(w => w.begin !== null)));
+document.getElementById('bvInput').addEventListener('input', () => updateLoadBtnState('loadBVBtn', bvWords.some(w => w.begin !== null)));
 
 // ─── DEVICE DETECTION ────────────────────────────────────────────────────────
 const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent) || window.innerWidth <= 768;
