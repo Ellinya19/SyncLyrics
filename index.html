@@ -1573,7 +1573,7 @@ function parseTTMLContent(xmlText, keepTiming) {
       if (!tokens.length) return '';
       let result = tokens[0].text;
       for (let i = 1; i < tokens.length; i++) {
-        result += (tokens[i].noSpaceBefore ? '\\' : ' ') + tokens[i].text;
+        result += (tokens[i].noSpaceBefore && !result.endsWith('-') ? '\\' : (tokens[i].noSpaceBefore ? '' : ' ')) + tokens[i].text;
       }
       return result;
     }
