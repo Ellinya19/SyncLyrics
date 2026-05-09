@@ -1559,7 +1559,7 @@ function parseTTMLContent(xmlText, keepTiming) {
       let i = 0;
       while (i < raw.length) {
         if (raw[i].text === '.' && raw[i+1] && raw[i+1].text === '.' && raw[i+2] && raw[i+2].text === '.') {
-          merged.push({ text: '...', begin: raw[i].begin, end: raw[i+2].end });
+          merged.push({ text: '...', begin: raw[i].begin, end: raw[i+2].end, noSpaceBefore: raw[i].noSpaceBefore });
           i += 3;
         } else {
           merged.push(raw[i]);
@@ -1702,7 +1702,7 @@ function parseTTMLContent(xmlText, keepTiming) {
         lines.forEach((tokens, li) => {
           tokens.forEach(t => {
             const isDotGroup = t.text === '...';
-            result.push({ text: t.text, ttmlText: t.text, begin: t.begin||0, end: t.end||0, lineIndex: li, isDotGroup, isDot: false, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
+            result.push({ text: t.text, ttmlText: t.text, begin: t.begin ?? 0, end: t.end ?? 0, lineIndex: li, isDotGroup, isDot: false, isBsPart: false, bsIndex: -1, isHyphenPart: false, hyphenIndex: -1 });
           });
         });
         return result;
@@ -3222,7 +3222,7 @@ function exportTTML() {
     if (hasDotGroup) {
       mainSpans = lineWords.map((w) => {
         if (w.isDotGroup) {
-          const tStart = w.end !== null ? w.end : (w.begin !== null ? w.begin : 0);
+          const tStart = w.begin !== null ? w.begin : 0;
           const nextEntryForDot = lineEntries[entryIdx + 1];
           const nextWordBegin = nextEntryForDot ? nextEntryForDot[1][0].begin : null;
           const tEnd = nextWordBegin !== null ? nextWordBegin - 0.1 : (tStart + 1.5);
