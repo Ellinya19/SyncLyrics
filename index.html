@@ -3272,8 +3272,15 @@ if (hasBV && bvLineMap[key]) {
     const innerSpans = bvLine.map((w, wi) => {
       const b = toTTMLTime(w.begin);
       const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
-      return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
-    }).join(' ');
+      const prevW = bvLine[wi - 1];
+      const noSpace = wi > 0 && (
+        (w.isHyphenPart) ||
+        (w.isBsPart && w.bsIndex > 0) ||
+        (prevW && prevW.text && prevW.text.endsWith('-'))
+      );
+      const sep = noSpace ? '' : (wi > 0 ? ' ' : '');
+      return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+    }).join('');
     return `      <span ttm:role="x-bg" begin="${bvPb}" end="${bvPe}">${innerSpans}</span>`;
   }).join('\n');
 }
@@ -3334,8 +3341,8 @@ return mainPTag;
             const prevW = bvLine[wi - 1];
             const noSpace = wi > 0 && ((w.isHyphenPart) || (w.isBsPart && w.bsIndex > 0) || (prevW && prevW.text && prevW.text.endsWith('-')));
             const sep = noSpace ? '' : (wi > 0 ? ' ' : '');
-            return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
-          }).join(' ');
+            return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+          }).join('');
           return `<span ttm:role="x-bg">${innerSpans}</span>`;
         }).join('');
       }
