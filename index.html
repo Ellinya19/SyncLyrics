@@ -968,50 +968,52 @@
   @media (min-width: 769px) {
     .mobile-shared-instruction-bar { display: none !important; }
     .sync-panels-wrapper .sync-panel .instruction-bar { display: flex !important; }
+  }
 
-    /* Mobile bottom bar for sync actions */
-    .mobile-sync-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      height: 64px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      z-index: 600;
-    }
+  /* Mobile bottom bar for sync actions */
+  .mobile-sync-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    height: 64px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 600;
+  }
 
-    .mobile-sync-bar .m-undo-btn,
-    .mobile-sync-bar .m-stamp-btn {
-      flex: 1;
-      border: none;
-      background: transparent;
-      font-size: 26px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.1s;
-      -webkit-user-select: none;
-      user-select: none;
-    }
+  .mobile-sync-bar .m-undo-btn,
+  .mobile-sync-bar .m-stamp-btn {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 
-    .mobile-sync-bar .m-undo-btn {
-      border-right: 1px solid var(--border);
-      color: var(--accent2);
-    }
+  .mobile-sync-bar .m-undo-btn {
+    border-right: 1px solid var(--border);
+    color: var(--accent2);
+  }
 
-    .mobile-sync-bar .m-stamp-btn {
-      color: var(--accent);
-    }
+  .mobile-sync-bar .m-stamp-btn {
+    color: var(--accent);
+  }
 
-    .mobile-sync-bar .m-undo-btn:active { background: rgba(255,255,255,0.08); }
-    .mobile-sync-bar .m-stamp-btn:active { background: rgba(255,255,255,0.08); }
-    .mobile-sync-bar .m-stamp-btn.holding { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+  .mobile-sync-bar .m-undo-btn:active { background: rgba(255,255,255,0.08); }
+  .mobile-sync-bar .m-stamp-btn:active { background: rgba(255,255,255,0.08); }
+  .mobile-sync-bar .m-stamp-btn.holding { background: color-mix(in srgb, var(--accent) 20%, transparent); }
 
+  @media (max-width: 768px) {
     /* push content above mobile bar */
-    .right-panels { padding-bottom: 0; }
+    .right-panels { padding-bottom: 64px; }
     .instruction-bar { padding-bottom: 16px; }
 
     /* Credits panel: at bottom of scrollable page, not fixed */
@@ -1030,11 +1032,7 @@
       background: transparent !important;
     }
   }
-  @media (min-width: 769px) {
-    .mobile-shared-instruction-bar { display: none !important; }
-    .sync-panels-wrapper .sync-panel .instruction-bar { display: flex !important; }
-  }
-</style>
+  </style>
 </head>
 <body>
 
@@ -1045,7 +1043,7 @@
   </div>
   <div class="header-controls">
   <div class="current-time-big" id="bigTime">⏱ <b>00:00.000</b></div>
-    <button class="btn" id="undoBtn" disabled onclick="undoLast()">↩ UNDO</button>
+    <button class="btn" id="undoBtn" disabled onclick="if(activeTab==='bv')bvUndoLast();else if(activeTab==='rv')rvUndoLast();else undoLast()">↩ UNDO</button>
     <button class="btn" id="resetBtn" onclick="resetOrDelete()" disabled>⟳ RESET</button>
     <button class="btn primary" id="exportBtn" onclick="exportTTML()" disabled>EXPORT TTML</button>
     <div class="theme-picker-wrapper" id="themePickerWrapper">
@@ -1300,7 +1298,7 @@
 </div>
 
 <!-- MOBILE SYNC BAR -->
-<div class="mobile-sync-bar mobile-only" style="display:none!important;">
+<div class="mobile-sync-bar mobile-only">
   <button class="m-undo-btn" id="mobileUndoBtn">↑</button>
   <button class="m-stamp-btn" id="mobileStampBtn">↓</button>
 </div>
@@ -1555,12 +1553,11 @@ function parseTTMLContent(xmlText, keepTiming) {
       }
     });
 
-    const pEls = doc.getElementsByTagNameNS ? 
+    let pEls = doc.getElementsByTagNameNS ? 
       Array.from(doc.getElementsByTagNameNS(ns, 'p')) :
       Array.from(doc.querySelectorAll('p'));
     if (!pEls.length) {
-      // fallback: no namespace
-      Array.from(doc.querySelectorAll('p'));
+      pEls = Array.from(doc.querySelectorAll('p'));
     }
 
     const mainLines = []; // 03 - Lyrics (agent v1 or no agent)
@@ -3192,8 +3189,8 @@ function exportTTML() {
   const bvLineMapRV_prebuilt = {};
   if (hasBV) {
     const bvLineMapRaw = {};
-    bvStamped.forEach(w => {
-      const li = w.lineIndex !== undefined ? w.lineIndex : 0;
+    bvStamped.forEach((w, wi) => {
+      const li = `${w.lineIndex !== undefined ? w.lineIndex : 0}_${wi}`;
       if (!bvLineMapRaw[li]) bvLineMapRaw[li] = [];
       bvLineMapRaw[li].push(w);
     });
@@ -3309,7 +3306,7 @@ function exportTTML() {
 let bvSpans = '';
 
 if (hasBV && bvLineMap[key]) {
-  bvSpans = bvLineMap[key].map(bvLine => {
+  bvSpans = bvLineMap[key].slice().sort((a, b) => a[0].begin - b[0].begin).map(bvLine => {
 
     const bb = toTTMLTime(bvLine[0].begin);
 
@@ -3395,7 +3392,7 @@ return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex+
       // Attach BV that belongs to this RV line as x-bg
       let rvBvSpans = '';
       if (bvLineMapRV[key]) {
-        rvBvSpans = bvLineMapRV[key].map(bvLine => {
+        rvBvSpans = bvLineMapRV[key].slice().sort((a, b) => a[0].begin - b[0].begin).map(bvLine => {
           const innerSpans = bvLine.map((w, wi) => {
             const b = toTTMLTime(w.begin);
             const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
@@ -3468,9 +3465,8 @@ function setStatus(msg, type) {
 
   const showToast = () => {
     toast.textContent = msg;
-    toast.className = `ok`; // reset
+    toast.className = '';
     toast.classList.add(type || 'ok');
-    toast.id = 'toastNotif';
     // force reflow to restart transition
     void toast.offsetWidth;
     toast.classList.add('visible');
