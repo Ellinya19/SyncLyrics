@@ -3270,25 +3270,13 @@ if (hasBV && bvLineMap[key]) {
       mergedBVLines.push([...bvLine]);
     }
   }
-  bvSpans = mergedBVLines.map(bvLine => {
-
-    const bb = toTTMLTime(bvLine[0].begin);
-
-    const lastBV = bvLine[bvLine.length - 1];
-    const be = toTTMLTime(
-      lastBV.end !== null
-        ? lastBV.end
-        : lastBV.begin + 0.12
-    );
-
+  bvSpans = sortedBVLines.map(bvLine => {
     const innerSpans = bvLine.map((w, wi) => {
       const b = toTTMLTime(w.begin);
       const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
       return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
     }).join(' ');
-
     return `<span ttm:role="x-bg">${innerSpans}</span>`;
-
   }).join('');
 }
 
