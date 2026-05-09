@@ -1573,7 +1573,7 @@ function parseTTMLContent(xmlText, keepTiming) {
       if (!tokens.length) return '';
       let result = tokens[0].text;
       for (let i = 1; i < tokens.length; i++) {
-        result += (tokens[i].noSpaceBefore && !result.endsWith('-') ? '\\' : (tokens[i].noSpaceBefore ? '' : ' ')) + tokens[i].text;
+        result += (tokens[i].noSpaceBefore && !tokens[i-1].text.endsWith('-') ? '\\' : (tokens[i].noSpaceBefore ? '' : ' ')) + tokens[i].text;
       }
       return result;
     }
@@ -3226,14 +3226,17 @@ function exportTTML() {
     const hasDotGroup = lineWords.some(w => w.isDotGroup);
     let mainSpans;
     if (hasDotGroup) {
-      mainSpans = lineWords.map((w) => {
+      mainSpans = lineWords.map((w, wi) => {
         if (w.isDotGroup) {
           const tStart = w.begin !== null ? w.begin : 0;
           const nextEntryForDot = lineEntries[entryIdx + 1];
           const nextWordBegin = nextEntryForDot ? nextEntryForDot[1][0].begin : null;
           const tEnd = nextWordBegin !== null ? nextWordBegin - 0.1 : (tStart + 1.5);
           const step = (tEnd - tStart) / 3;
-          return [0, 1, 2].map(di => {
+          const prevW = lineWords[wi - 1];
+          const noSpaceDot = wi > 0 && prevW && prevW.text && prevW.text.endsWith('-');
+          const dotSep = noSpaceDot ? '' : (wi > 0 ? ' ' : '');
+          return dotSep + [0, 1, 2].map(di => {
             const b = toTTMLTime(tStart + di * step);
             const e = toTTMLTime(tStart + (di + 1) * step);
             return `<span begin="${b}" end="${e}">.</span>`;
@@ -3241,7 +3244,14 @@ function exportTTML() {
         }
         const b = toTTMLTime(w.begin);
         const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
-        return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+        const prevW = lineWords[wi - 1];
+        const noSpace = wi > 0 && (
+          (w.isBsPart && w.bsIndex > 0) ||
+          (w.isHyphenPart) ||
+          (prevW && prevW.text && prevW.text.endsWith('-'))
+        );
+        const sep = noSpace ? '' : (wi > 0 ? ' ' : '');
+        return sep + `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
       }).join('');
     } else {
       mainSpans = lineWords.map((w, wi) => {
