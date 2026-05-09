@@ -3140,8 +3140,8 @@ function exportTTML() {
   const bvLineMapRV_prebuilt = {};
   if (hasBV) {
     const bvLineMapRaw = {};
-    bvStamped.forEach((w, wi) => {
-      const li = `${w.lineIndex !== undefined ? w.lineIndex : 0}_${wi}`;
+    bvStamped.forEach((w) => {
+      const li = `${w.lineIndex !== undefined ? w.lineIndex : 0}`;
       if (!bvLineMapRaw[li]) bvLineMapRaw[li] = [];
       bvLineMapRaw[li].push(w);
     });
@@ -3257,7 +3257,20 @@ function exportTTML() {
 let bvSpans = '';
 
 if (hasBV && bvLineMap[key]) {
-  bvSpans = bvLineMap[key].slice().sort((a, b) => a[0].begin - b[0].begin).map(bvLine => {
+  // Gom các bvLines liên tiếp (lineIndex kề nhau) thành một x-bg
+  const sortedBVLines = bvLineMap[key].slice().sort((a, b) => a[0].begin - b[0].begin);
+  const mergedBVLines = [];
+  for (const bvLine of sortedBVLines) {
+    const last = mergedBVLines[mergedBVLines.length - 1];
+    const lastLI = last ? last[last.length - 1].lineIndex : -999;
+    const curLI = bvLine[0].lineIndex;
+    if (last && (curLI === lastLI + 1 || curLI === lastLI)) {
+      mergedBVLines[mergedBVLines.length - 1] = [...last, ...bvLine];
+    } else {
+      mergedBVLines.push([...bvLine]);
+    }
+  }
+  bvSpans = mergedBVLines.map(bvLine => {
 
     const bb = toTTMLTime(bvLine[0].begin);
 
@@ -3269,26 +3282,10 @@ if (hasBV && bvLineMap[key]) {
     );
 
     const innerSpans = bvLine.map((w, wi) => {
-
       const b = toTTMLTime(w.begin);
-
-      const e = toTTMLTime(
-        w.end !== null
-          ? w.end
-          : w.begin + 0.12
-      );
-
-      const sep =
-        (wi > 0 && (
-          (w.isHyphenPart && w.hyphenIndex > 0) ||
-          (w.isBsPart && w.bsIndex > 0)
-        ))
-          ? ''
-          : (wi > 0 ? ' ' : '');
-
-      return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
-
-    }).join('');
+      const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
+      return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+    }).join(' ');
 
     return `<span ttm:role="x-bg">${innerSpans}</span>`;
 
@@ -3350,8 +3347,8 @@ return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex+
             const prevW = bvLine[wi - 1];
             const noSpace = wi > 0 && ((w.isHyphenPart) || (w.isBsPart && w.bsIndex > 0) || (prevW && prevW.text && prevW.text.endsWith('-')));
             const sep = noSpace ? '' : (wi > 0 ? ' ' : '');
-            return `${sep}<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
-          }).join('');
+            return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
+          }).join(' ');
           return `<span ttm:role="x-bg">${innerSpans}</span>`;
         }).join('');
       }
