@@ -970,50 +970,7 @@
     .sync-panels-wrapper .sync-panel .instruction-bar { display: flex !important; }
   }
 
-  /* Mobile bottom bar for sync actions */
-  .mobile-sync-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    height: 64px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    z-index: 600;
-  }
-
-  .mobile-sync-bar .m-undo-btn,
-  .mobile-sync-bar .m-stamp-btn {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-size: 26px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.1s;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  .mobile-sync-bar .m-undo-btn {
-    border-right: 1px solid var(--border);
-    color: var(--accent2);
-  }
-
-  .mobile-sync-bar .m-stamp-btn {
-    color: var(--accent);
-  }
-
-  .mobile-sync-bar .m-undo-btn:active { background: rgba(255,255,255,0.08); }
-  .mobile-sync-bar .m-stamp-btn:active { background: rgba(255,255,255,0.08); }
-  .mobile-sync-bar .m-stamp-btn.holding { background: color-mix(in srgb, var(--accent) 20%, transparent); }
-
   @media (max-width: 768px) {
-    /* push content above mobile bar */
-    .right-panels { padding-bottom: 64px; }
     .instruction-bar { padding-bottom: 16px; }
 
     /* Credits panel: at bottom of scrollable page, not fixed */
@@ -1295,12 +1252,6 @@
     <button class="sync-pad-btn left-btn" id="padUndoBtn" title="Undo (Z / ↑)">↑</button>
     <button class="sync-pad-btn right-btn" id="padStampBtn" title="Stamp (Space / ↓)">↓</button>
   </div>
-</div>
-
-<!-- MOBILE SYNC BAR -->
-<div class="mobile-sync-bar mobile-only">
-  <button class="m-undo-btn" id="mobileUndoBtn">↑</button>
-  <button class="m-stamp-btn" id="mobileStampBtn">↓</button>
 </div>
 
 <!-- TTML IMPORT CONFIRM MODAL -->
@@ -3776,33 +3727,6 @@ const isMobileDevice = () => /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigat
   const doUndo = () => { if (activeTab === 'bv') bvUndoLast(); else if (activeTab === 'rv') rvUndoLast(); else undoLast(); };
   undoBtn.addEventListener('mousedown', (e) => { e.preventDefault(); doUndo(); });
   undoBtn.addEventListener('touchstart', (e) => { e.preventDefault(); doUndo(); }, { passive: false });
-})();
-
-// ─── MOBILE SYNC BAR LOGIC ────────────────────────────────────────────────────
-(function() {
-  const mStamp = document.getElementById('mobileStampBtn');
-  const mUndo = document.getElementById('mobileUndoBtn');
-  if (!mStamp || !mUndo) return;
-
-  mStamp.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    mStamp.classList.add('holding');
-    if (!spaceHeld) {
-      spaceHeld = true;
-      if (activeTab === 'bv') bvStampWordStart(); else if (activeTab === 'rv') rvStampWordStart(); else stampWordStart();
-    }
-  }, { passive: false });
-  mStamp.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    mStamp.classList.remove('holding');
-    if (spaceHeld) {
-      spaceHeld = false;
-      if (activeTab === 'bv') bvStampWordEnd(); else if (activeTab === 'rv') rvStampWordEnd(); else stampWordEnd();
-    }
-  }, { passive: false });
-
-  const doUndo = () => { if (activeTab === 'bv') bvUndoLast(); else if (activeTab === 'rv') rvUndoLast(); else undoLast(); };
-  mUndo.addEventListener('touchstart', (e) => { e.preventDefault(); doUndo(); }, { passive: false });
 })();
 
 // ─── THEME PICKER ─────────────────────────────────────────────────────────────
