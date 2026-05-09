@@ -3257,19 +3257,8 @@ function exportTTML() {
 let bvSpans = '';
 
 if (hasBV && bvLineMap[key]) {
-  // Gom các bvLines liên tiếp (lineIndex kề nhau) thành một x-bg
+  // Mỗi dòng BV (lineIndex = mỗi hàng trong sync panel) → một x-bg span riêng, KHÔNG gộp
   const sortedBVLines = bvLineMap[key].slice().sort((a, b) => a[0].begin - b[0].begin);
-  const mergedBVLines = [];
-  for (const bvLine of sortedBVLines) {
-    const last = mergedBVLines[mergedBVLines.length - 1];
-    const lastLI = last ? last[last.length - 1].lineIndex : -999;
-    const curLI = bvLine[0].lineIndex;
-    if (last && (curLI === lastLI + 1 || curLI === lastLI)) {
-      mergedBVLines[mergedBVLines.length - 1] = [...last, ...bvLine];
-    } else {
-      mergedBVLines.push([...bvLine]);
-    }
-  }
   bvSpans = sortedBVLines.map(bvLine => {
     const innerSpans = bvLine.map((w, wi) => {
       const b = toTTMLTime(w.begin);
