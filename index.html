@@ -2677,6 +2677,7 @@ function bvStampWordEnd() {
 
   checkExportReady();
   bvUpdateStats();
+  updateResetDeleteBtn();
 }
 
 function bvUndoLast() {
@@ -3114,7 +3115,12 @@ function checkExportReady() {
 // ─── TTML EXPORT ─────────────────────────────────────────────────────────────
 function exportTTML() {
   const stamped = words.filter(w => w.begin !== null);
-  if (stamped.length === 0) { setStatus('Nothing to export', 'err'); return; }
+  const bvStampedCheck = bvWords.filter(w => w.begin !== null);
+  const rvStampedCheck = rvWords.filter(w => w.begin !== null);
+  if (stamped.length === 0 && bvStampedCheck.length === 0 && rvStampedCheck.length === 0) { setStatus('Nothing to export', 'err'); return; }
+  if (bvWords.length > 0 && (!bvEndSyncStamped || bvStampedCheck.length < bvWords.length)) { setStatus('Backing Vocal not fully synced — please complete it before exporting!', 'err'); return; }
+  if (rvWords.length > 0 && (!rvEndSyncStamped || rvStampedCheck.length < rvWords.length)) { setStatus('Additional Lyrics not fully synced — please complete it before exporting!', 'err'); return; }
+  if (words.length > 0 && (!endSyncStamped || stamped.length < words.length)) { setStatus('Main lyrics not fully synced — please complete it before exporting!', 'err'); return; }
 
   const bvStamped = bvWords.filter(w => w.begin !== null);
   const hasBV = bvStamped.length > 0;
