@@ -3255,21 +3255,25 @@ function exportTTML() {
     }
     // Attach BV lines as inline x-bg spans inside this <p>
 let bvSpans = '';
+let bvSeparatePTags = '';
 
 if (hasBV && bvLineMap[key]) {
-  // Mỗi dòng BV (lineIndex = mỗi hàng trong sync panel) → một x-bg span riêng, KHÔNG gộp
+  // Mỗi dòng BV (lineIndex = mỗi hàng trong sync panel) → một <p> riêng biệt với ttm:role="x-bg"
   const sortedBVLines = bvLineMap[key].slice().sort((a, b) => a[0].begin - b[0].begin);
-  bvSpans = sortedBVLines.map(bvLine => {
+  bvSeparatePTags = sortedBVLines.map(bvLine => {
+    const bvPb = toTTMLTime(bvLine[0].begin);
+    const bvPe = toTTMLTime(bvLine[bvLine.length - 1].end || bvLine[bvLine.length - 1].begin + 0.12);
     const innerSpans = bvLine.map((w, wi) => {
       const b = toTTMLTime(w.begin);
       const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
       return `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
     }).join(' ');
-    return `<span ttm:role="x-bg">${innerSpans}</span>`;
-  }).join('');
+    return `      <span ttm:role="x-bg" begin="${bvPb}" end="${bvPe}">${innerSpans}</span>`;
+  }).join('\n');
 }
 
-return `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSpans}</p>`;
+const mainPTag = `      <p begin="${pb}" end="${pe}" ttm:agent="v1" itunes:key="L${pIndex++}">${mainSpans}${bvSeparatePTags}</p>`;
+return mainPTag;
   }).join('\n');
 
   const agentMeta = `<ttm:agent type="person" xml:id="v1"/>${hasRV ? '<ttm:agent type="other" xml:id="v2"/>' : ''}`;
