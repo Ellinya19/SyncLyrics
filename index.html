@@ -454,7 +454,6 @@
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.9);
-    display: flex;
     align-items: center;
     justify-content: center;
     z-index: 999;
@@ -1199,7 +1198,7 @@
             <div class="empty-state">
               <div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div>
               <h3 style="color:var(--accent);">Backing Vocal</h3>
-              <p>Load backing vocal lyrics in section 05, then sync here.</p>
+              <p>Load backing vocal lyrics in section 06, then sync here.</p>
             </div>
           </div>
         </div>
@@ -1439,7 +1438,7 @@ function handleLoadOrUpdateRV() {
   rvCurrentIndex = newCurrentIndex;
   rvEndSyncStamped = rvCurrentIndex >= rvWords.length && rvWords.length > 0 && rvWords.every(w => w.begin !== null);
   rvReSyncTargetIndex = null;
-  rvRenderWords(); rvUpdateStats();
+  rvRenderWords(); rvUpdateStats(); updateUndoBtn(); updateResetDeleteBtn();
   updateLoadBtnState('loadRVBtn', rvWords.some(w => w.begin !== null));
   setRVStatus(`Additional Lyrics updated — ${result.filter(w=>w.begin!==null).length} timings preserved ✓`, 'ok');
 }
@@ -1458,7 +1457,7 @@ function handleLoadOrUpdateBV() {
   bvCurrentIndex = newCurrentIndex;
   bvEndSyncStamped = bvCurrentIndex >= bvWords.length && bvWords.length > 0 && bvWords.every(w => w.begin !== null);
   bvReSyncTargetIndex = null;
-  bvRenderWords(); bvUpdateStats(); updateResetDeleteBtn();
+  bvRenderWords(); bvUpdateStats(); updateResetDeleteBtn(); updateUndoBtn();
   updateLoadBtnState('loadBVBtn', bvWords.some(w => w.begin !== null));
   setBVStatus(`Backing Vocal updated — ${result.filter(w=>w.begin!==null).length} timings preserved ✓`, 'ok');
 }
@@ -2117,6 +2116,7 @@ function stampWordEnd() {
 
   checkExportReady();
   updateStats();
+  updateResetDeleteBtn();
 }
 
 function undoLast() {
@@ -2542,7 +2542,7 @@ function loadBV() {
 function bvRenderWords() {
   const canvas = document.getElementById('bvCanvas');
   if (bvWords.length === 0) {
-    canvas.innerHTML = `<div class="empty-state"><div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div><h3 style="color:#6eb4ff;">Backing Vocal</h3><p>Load backing vocal lyrics in section 04.</p></div>`;
+    canvas.innerHTML = `<div class="empty-state"><div class="big-icon" style="filter:hue-rotate(180deg);">🎤</div><h3 style="color:#6eb4ff;">Backing Vocal</h3><p>Load backing vocal lyrics in section 06.</p></div>`;
     return;
   }
   canvas.innerHTML = '';
@@ -2620,6 +2620,13 @@ function bvStampWordStart() {
 
   const el = document.getElementById(`bv-word-${bvCurrentIndex}`);
   if (el) { el.classList.remove('pending'); el.classList.add('active'); el.style.background='#6eb4ff'; el.style.borderColor='#6eb4ff'; el.style.boxShadow='0 0 30px rgba(110,180,255,0.45)'; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+  const stampedBVWord = bvWords[bvCurrentIndex];
+  const bvLineFirstWordIdx = bvWords.findIndex(w => w.lineIndex === stampedBVWord.lineIndex);
+  if (bvCurrentIndex === bvLineFirstWordIdx) {
+    const badge = document.getElementById(`bv-line-time-${stampedBVWord.lineIndex}`);
+    if (badge) badge.textContent = formatTime(t);
+  }
 
   document.getElementById('undoBtn').disabled = false;
   bvUpdateStats();
@@ -2843,7 +2850,7 @@ function loadRV() {
 function rvRenderWords() {
   const canvas = document.getElementById('rvCanvas');
   if (rvWords.length === 0) {
-    canvas.innerHTML = `<div class="empty-state"><div class="big-icon" style="filter:hue-rotate(200deg);">🎤</div><h3 style="color:#6eb4ff;">Right Lyrics</h3><p>Load right-side lyrics in section 04.</p></div>`;
+    canvas.innerHTML = `<div class="empty-state"><div class="big-icon" style="filter:hue-rotate(200deg);">🎤</div><h3 style="color:#6eb4ff;">Additional Lyrics</h3><p>Load additional lyrics in section 05.</p></div>`;
     return;
   }
   canvas.innerHTML = '';
@@ -2976,6 +2983,7 @@ function rvStampWordEnd() {
 
   checkExportReady();
   rvUpdateStats();
+  updateResetDeleteBtn();
 }
 
 function rvUndoLast() {
@@ -3127,10 +3135,13 @@ function exportTTML() {
   const rvStamped = rvWords.filter(w => w.begin !== null);
   const hasRV = rvStamped.length > 0;
 
-  const totalDur = audio && audio.duration ? audio.duration : (stamped[stamped.length-1].end || stamped[stamped.length-1].begin + 0.5);
+  const allStampedWords = [...stamped, ...rvStamped, ...bvStamped].filter(w => w.begin !== null);
+  const firstStamped = allStampedWords.reduce((a, b) => a.begin <= b.begin ? a : b, allStampedWords[0]);
+  const lastStamped  = allStampedWords.reduce((a, b) => (a.end || a.begin) >= (b.end || b.begin) ? a : b, allStampedWords[0]);
+  const totalDur = audio && audio.duration ? audio.duration : (lastStamped.end || lastStamped.begin + 0.5);
   const durStr = toTTMLTime(totalDur);
-  const firstBegin = toTTMLTime(stamped[0].begin);
-  const lastEnd = toTTMLTime(stamped[stamped.length-1].end || stamped[stamped.length-1].begin + 0.5);
+  const firstBegin = toTTMLTime(firstStamped.begin);
+  const lastEnd = toTTMLTime(lastStamped.end || lastStamped.begin + 0.5);
 
   // Build main lyric <p> tags
   const lineMap = {};
@@ -3258,7 +3269,6 @@ function exportTTML() {
         const b = toTTMLTime(w.begin);
         const e = toTTMLTime(w.end !== null ? w.end : w.begin + 0.12);
         const span = `<span begin="${b}" end="${e}">${escapeXML(w.ttmlText || w.text)}</span>`;
-        const prev = lineWords[wi - 1];
         const prevW = lineWords[wi - 1];
         const noSpace = wi > 0 && (
           (w.isBsPart && w.bsIndex > 0) ||
